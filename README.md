@@ -16,6 +16,7 @@
   - [Progress Tracking](#progress-tracking)
   - [Profile](#profile)
 - [Technologies](#technologies)
+- [Database Structure](#database-structure)
 - [Installation & Setup](#installation--setup)
 - [Contribution Guidelines](#contribution-guidelines)
 - [License](#license)
@@ -121,6 +122,50 @@ The main dashboard displays:
 - **Backend & Database:**  
   - Firebase
 
+---
+## Database Structure
+The following structure outlines how data is stored in Firebase (Firestore) for the MyGainz app. Collections and documents are used to manage users, exercises, and routines efficiently.
+
+### `/users` (Collection)
+Each document is a user, identified by Firebase Auth UID or email.
+
+```json
+{
+  "name": string,
+  "lastName": string,
+  "dateOfBirth": Timestamp,
+  "email": string,
+  "password": string,          // only if not using Google auth, stored hashed
+  "height": number,            // in cm
+  "weight": number,            // in kg
+  "fatPercentage": number,     // %
+  "musclePercentage": number   // %
+}
+```
+
+### `/exercises` (Collection)
+Each document is an exercise created by a user.
+
+```json
+{
+  "userId": string,                // Reference to a user (UID or email)
+  "exerciseName": string,
+  "targetMuscles": array<string>, // e.g., ["Chest", "Triceps"]
+  "equipment": array<string>      // e.g., ["Dumbbells", "Bench"]
+}
+```
+
+### `/routines` (Collection)
+Each document represents a workout routine.
+
+```json
+{
+  "userId": string,               // Reference to a user (UID or email)
+  "name": string,
+  "orderIsRequired": boolean,
+  "exerciseIds": array<string>   // References to exercise document IDs
+}
+```
 ---
 
 ## Installation & Setup

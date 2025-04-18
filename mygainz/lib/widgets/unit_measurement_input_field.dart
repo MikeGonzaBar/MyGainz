@@ -27,8 +27,6 @@ class MeasurementInputField extends StatelessWidget {
     final isWeight = measurementType.toLowerCase() == 'weight';
     final label = isWeight ? 'Weight' : 'Height';
     final hint = isWeight ? 'Enter your weight' : 'Enter your height';
-    final brightness = Theme.of(context).brightness;
-    final isDarkMode = brightness == Brightness.dark;
 
     return TextField(
       controller: controller,

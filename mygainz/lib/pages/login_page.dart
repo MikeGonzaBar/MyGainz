@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mygainz/pages/main_frame.dart';
 import 'package:mygainz/widgets/input_field.dart';
 
 class LoginPage extends StatefulWidget {
@@ -20,6 +21,10 @@ class _LoginPageState extends State<LoginPage> {
     print('Password: $password');
 
     // TODO: Replace with actual login logic
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainFramePage()),
+    );
   }
 
   @override
@@ -38,16 +43,13 @@ class _LoginPageState extends State<LoginPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Image.asset(
-                'assets/logo.png', // Replace with your asset path
-                height: 180,
-              ),
+              Image.asset('assets/logo.png', height: 180),
               const SizedBox(height: 16),
               const Text(
                 "Your Workouts, Your Way.",
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   fontFamily: 'LeagueSpartan',
                 ),
               ),
@@ -72,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                   'Login',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     fontFamily: 'LeagueSpartan',
                   ),
                 ),
@@ -86,7 +88,7 @@ class _LoginPageState extends State<LoginPage> {
                   "Not a member? Register",
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w300,
                     fontFamily: 'LeagueSpartan',
                   ),
                 ),

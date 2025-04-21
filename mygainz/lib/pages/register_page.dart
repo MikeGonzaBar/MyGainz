@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mygainz/widgets/input_field.dart';
 import 'package:mygainz/widgets/unit_measurement_input_field.dart';
 import 'package:mygainz/widgets/percentage_input_field.dart';
+import 'package:mygainz/pages/main_frame.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -105,6 +106,10 @@ class _RegisterPageState extends State<RegisterPage> {
       print('Weight: ${weightController.text}');
       print('Fat: ${fatController.text}');
       print('Muscle: ${muscleController.text}');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainFramePage()),
+      );
     }
   }
 

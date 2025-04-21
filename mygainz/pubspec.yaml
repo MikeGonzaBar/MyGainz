@@ -65,10 +65,29 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/icons/ui_icons/
+    - assets/icons/muscles/
   fonts:
     - family: LeagueSpartan
       fonts:
-        - asset: assets/fonts/LeagueSpartan-VariableFont_wght.ttf
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Light.ttf
+          weight: 300
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/League_Spartan/static/LeagueSpartan-Black.ttf
+          weight: 900
     - family: Manrope
       fonts:
         - asset: assets/fonts/Manrope-VariableFont_wght.ttf

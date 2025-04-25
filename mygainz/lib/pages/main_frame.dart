@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'home_page.dart';
+import 'exercise_page.dart';
+import 'log_page.dart';
+import 'progress_page.dart';
+import 'profile_page.dart';
 
 class MainFramePage extends StatelessWidget {
   const MainFramePage({super.key});
@@ -22,12 +27,12 @@ class _MainFrameState extends State<MainFrame> {
     fontSize: 30,
     fontWeight: FontWeight.bold,
   );
-  static const List<Widget> _widgetOptions = <Widget>[
-    Text('Index 0: Home', style: optionStyle),
-    Text('Index 1: Exercise', style: optionStyle),
-    Text('Index 2: Log', style: optionStyle),
-    Text('Index 3: Progress', style: optionStyle),
-    Text('Index 4: Profile', style: optionStyle),
+  static final List<Widget> _widgetOptions = <Widget>[
+    HomePage(),
+    const ExercisePage(),
+    const LogPage(),
+    const ProgressPage(),
+    const ProfilePage(),
   ];
 
   void _onItemTapped(int index) {

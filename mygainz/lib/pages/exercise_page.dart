@@ -3,32 +3,34 @@ import 'exercise_form_page.dart';
 import 'routine_form_page.dart';
 
 class Exercise {
-  final String id;
-  final String name;
-  final List<String> muscleGroups;
+  final String id; // Document ID
+  final String userId;
+  final String exerciseName;
+  final List<String> targetMuscles;
   final List<String> equipment;
-  final String category;
 
   Exercise({
     required this.id,
-    required this.name,
-    required this.muscleGroups,
+    required this.userId,
+    required this.exerciseName,
+    required this.targetMuscles,
     required this.equipment,
-    required this.category,
   });
 }
 
 class Routine {
-  final String id;
+  final String id; // Document ID
+  final String userId;
   final String name;
-  final List<Exercise> exercises;
-  final bool strictOrder;
+  final bool orderIsRequired;
+  final List<String> exerciseIds; // References to exercise document IDs
 
   Routine({
     required this.id,
+    required this.userId,
     required this.name,
-    required this.exercises,
-    required this.strictOrder,
+    required this.orderIsRequired,
+    required this.exerciseIds,
   });
 }
 
@@ -48,104 +50,84 @@ class _ExercisePageState extends State<ExercisePage>
   final List<Exercise> _exercises = [
     Exercise(
       id: '1',
-      name: 'Bench Press',
-      muscleGroups: ['Chest', 'Triceps'],
+      userId: 'user1',
+      exerciseName: 'Bench Press',
+      targetMuscles: ['Chest', 'Triceps'],
       equipment: ['Barbell', 'Dumbbell', 'Machine'],
-      category: 'Upper Body',
     ),
     Exercise(
       id: '2',
-      name: 'Pull-ups',
-      muscleGroups: ['Back', 'Biceps'],
+      userId: 'user1',
+      exerciseName: 'Pull-ups',
+      targetMuscles: ['Back', 'Biceps'],
       equipment: ['Pull-up bar'],
-      category: 'Upper Body',
     ),
     Exercise(
       id: '3',
-      name: 'Squats',
-      muscleGroups: ['Quads', 'Hamstrings', 'Glutes'],
+      userId: 'user1',
+      exerciseName: 'Squats',
+      targetMuscles: ['Quads', 'Hamstrings', 'Glutes'],
       equipment: ['Barbell'],
-      category: 'Lower Body',
     ),
     Exercise(
       id: '4',
-      name: 'Crunches',
-      muscleGroups: ['Abs'],
+      userId: 'user1',
+      exerciseName: 'Crunches',
+      targetMuscles: ['Abs'],
       equipment: ['No equipment'],
-      category: 'Core',
+    ),
+    Exercise(
+      id: '5',
+      userId: 'user1',
+      exerciseName: 'Rows',
+      targetMuscles: ['Back'],
+      equipment: ['Barbell'],
+    ),
+    Exercise(
+      id: '6',
+      userId: 'user1',
+      exerciseName: 'Katana',
+      targetMuscles: ['Back', 'Shoulders'],
+      equipment: ['Cable'],
+    ),
+    Exercise(
+      id: '7',
+      userId: 'user1',
+      exerciseName: 'Skull crusher',
+      targetMuscles: ['Triceps'],
+      equipment: ['Dumbbell'],
+    ),
+    Exercise(
+      id: '8',
+      userId: 'user1',
+      exerciseName: 'Shoulder Press',
+      targetMuscles: ['Shoulders'],
+      equipment: ['Dumbbell'],
     ),
   ];
 
   // Dummy data for routines
-  final List<Routine> _routines = [];
+  final List<Routine> _routines = [
+    Routine(
+      id: '1',
+      userId: 'user1',
+      name: 'Back / Tricep',
+      orderIsRequired: false,
+      exerciseIds: ['2', '5', '6', '7'],
+    ),
+    Routine(
+      id: '2',
+      userId: 'user1',
+      name: 'Chest / Shoulders',
+      orderIsRequired: true,
+      exerciseIds: ['1', '8'],
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    // Initialize dummy routines
-    _routines.add(
-      Routine(
-        id: '1',
-        name: 'Back / Tricep',
-        exercises: [
-          Exercise(
-            id: '2',
-            name: 'Pull-ups',
-            muscleGroups: ['Back', 'Biceps'],
-            equipment: ['Pull-up bar'],
-            category: 'Upper Body',
-          ),
-          Exercise(
-            id: '5',
-            name: 'Rows',
-            muscleGroups: ['Back'],
-            equipment: ['Barbell'],
-            category: 'Upper Body',
-          ),
-          Exercise(
-            id: '6',
-            name: 'Katana',
-            muscleGroups: ['Back', 'Shoulders'],
-            equipment: ['Cable'],
-            category: 'Upper Body',
-          ),
-          Exercise(
-            id: '7',
-            name: 'Skull crusher',
-            muscleGroups: ['Triceps'],
-            equipment: ['Dumbbell'],
-            category: 'Upper Body',
-          ),
-        ],
-        strictOrder: false,
-      ),
-    );
-
-    _routines.add(
-      Routine(
-        id: '2',
-        name: 'Chest / Shoulders',
-        exercises: [
-          Exercise(
-            id: '1',
-            name: 'Bench Press',
-            muscleGroups: ['Chest', 'Triceps'],
-            equipment: ['Barbell', 'Dumbbell', 'Machine'],
-            category: 'Upper Body',
-          ),
-          Exercise(
-            id: '8',
-            name: 'Shoulder Press',
-            muscleGroups: ['Shoulders'],
-            equipment: ['Dumbbell'],
-            category: 'Upper Body',
-          ),
-        ],
-        strictOrder: true,
-      ),
-    );
   }
 
   List<Exercise> get filteredExercises {
@@ -153,7 +135,9 @@ class _ExercisePageState extends State<ExercisePage>
       return _exercises;
     } else {
       return _exercises
-          .where((exercise) => exercise.category == _selectedCategory)
+          .where(
+            (exercise) => exercise.targetMuscles.contains(_selectedCategory),
+          )
           .toList();
     }
   }
@@ -261,7 +245,9 @@ class _ExercisePageState extends State<ExercisePage>
                           children: [
                             _buildCategoryFilter('All'),
                             const SizedBox(width: 8),
-                            _buildCategoryFilter('Upper Body'),
+                            _buildCategoryFilter('Chest'),
+                            const SizedBox(width: 8),
+                            _buildCategoryFilter('Back'),
                             const SizedBox(width: 8),
                             _buildCategoryFilter('Lower Body'),
                             const SizedBox(width: 8),
@@ -357,7 +343,7 @@ class _ExercisePageState extends State<ExercisePage>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  exercise.name,
+                  exercise.exerciseName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -371,7 +357,7 @@ class _ExercisePageState extends State<ExercisePage>
                 ),
               ],
             ),
-            Text(exercise.muscleGroups.join(', ')),
+            Text(exercise.targetMuscles.join(', ')),
             const SizedBox(height: 8),
             Row(
               children:
@@ -428,8 +414,8 @@ class _ExercisePageState extends State<ExercisePage>
               spacing: 8,
               runSpacing: 8,
               children:
-                  routine.exercises
-                      .map((exercise) => _buildExerciseTile(exercise))
+                  routine.exerciseIds
+                      .map((id) => _buildExerciseTile(id))
                       .toList(),
             ),
           ],
@@ -438,7 +424,8 @@ class _ExercisePageState extends State<ExercisePage>
     );
   }
 
-  Widget _buildExerciseTile(Exercise exercise) {
+  Widget _buildExerciseTile(String id) {
+    final exercise = _exercises.firstWhere((e) => e.id == id);
     return Container(
       width: 50,
       height: 30,
@@ -452,7 +439,7 @@ class _ExercisePageState extends State<ExercisePage>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              exercise.name,
+              exercise.exerciseName,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 10),
               maxLines: 2,

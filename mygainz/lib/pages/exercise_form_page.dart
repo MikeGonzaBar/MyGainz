@@ -20,17 +20,24 @@ class ExerciseFormPage extends StatefulWidget {
 class _ExerciseFormPageState extends State<ExerciseFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  String _selectedCategory = 'Upper Body';
   final List<String> _selectedMuscles = [];
   final List<String> _selectedEquipment = [];
 
   // Available options
-  final List<String> _categories = ['Upper Body', 'Lower Body', 'Core'];
-  final Map<String, List<String>> _musclesByCategory = {
-    'Upper Body': ['Chest', 'Back', 'Biceps', 'Triceps', 'Shoulders'],
-    'Lower Body': ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
-    'Core': ['Abs', 'Lower Back', 'Obliques'],
-  };
+  final List<String> _allMuscles = [
+    'Chest',
+    'Back',
+    'Biceps',
+    'Triceps',
+    'Shoulders',
+    'Quads',
+    'Hamstrings',
+    'Glutes',
+    'Calves',
+    'Abs',
+    'Lower Back',
+    'Obliques',
+  ];
   final List<String> _equipment = [
     'Barbell',
     'Dumbbell',
@@ -39,6 +46,7 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
     'Bodyweight',
     'Kettlebell',
     'Resistance Band',
+    'Pull-up bar',
     'None',
     'Rack',
   ];
@@ -48,9 +56,8 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
     super.initState();
     if (widget.isEditing && widget.exercise != null) {
       // Pre-fill form with exercise data
-      _nameController.text = widget.exercise!.name;
-      _selectedCategory = widget.exercise!.category;
-      _selectedMuscles.addAll(widget.exercise!.muscleGroups);
+      _nameController.text = widget.exercise!.exerciseName;
+      _selectedMuscles.addAll(widget.exercise!.targetMuscles);
       _selectedEquipment.addAll(widget.exercise!.equipment);
     }
   }
@@ -64,9 +71,8 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
   void _submit() {
     if (_formKey.currentState!.validate()) {
       final exerciseData = {
-        'name': _nameController.text,
-        'category': _selectedCategory,
-        'muscleGroups': _selectedMuscles,
+        'exerciseName': _nameController.text,
+        'targetMuscles': _selectedMuscles,
         'equipment': _selectedEquipment,
       };
 
@@ -107,15 +113,6 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
               ),
               const SizedBox(height: 24),
 
-              // Category
-              const Text(
-                'Category',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _buildDropdown(),
-              const SizedBox(height: 24),
-
               // Target Muscles
               const Text(
                 'Target Muscles',
@@ -126,7 +123,7 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children:
-                    _getMusclesForCategory().map((muscle) {
+                    _allMuscles.map((muscle) {
                       final isSelected = _selectedMuscles.contains(muscle);
                       return _buildSelectionChip(
                         label: muscle,
@@ -143,16 +140,6 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
                       );
                     }).toList(),
               ),
-              TextButton.icon(
-                onPressed: () {
-                  // Add more muscles (would open a dialog or another page)
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add More'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF1B2027),
-                ),
-              ),
               const SizedBox(height: 24),
 
               // Equipment Needed
@@ -165,7 +152,7 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children:
-                    _equipment.take(5).map((item) {
+                    _equipment.map((item) {
                       final isSelected = _selectedEquipment.contains(item);
                       return _buildSelectionChip(
                         label: item,
@@ -181,16 +168,6 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
                         },
                       );
                     }).toList(),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  // Show more equipment options
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add More'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF1B2027),
-                ),
               ),
               const SizedBox(height: 32),
 
@@ -222,60 +199,21 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
     );
   }
 
-  List<String> _getMusclesForCategory() {
-    return _musclesByCategory[_selectedCategory] ?? [];
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String labelText,
-    required String? Function(String?)? validator,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
+      validator: validator,
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: Colors.grey.shade700),
         filled: true,
         fillColor: Colors.grey.shade100,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
-        ),
-      ),
-      validator: validator,
-    );
-  }
-
-  Widget _buildDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedCategory,
-          isExpanded: true,
-          hint: const Text('Select Category'),
-          onChanged: (String? newValue) {
-            if (newValue != null) {
-              setState(() {
-                _selectedCategory = newValue;
-                // Clear selected muscles when category changes
-                _selectedMuscles.clear();
-              });
-            }
-          },
-          items:
-              _categories.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
         ),
       ),
     );
@@ -292,9 +230,12 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
       selectedColor: const Color(0xFF1B2027),
       backgroundColor: Colors.grey.shade200,
       checkmarkColor: Colors.white,
-      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
       onSelected: onSelected,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }

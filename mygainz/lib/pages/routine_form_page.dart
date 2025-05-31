@@ -22,7 +22,7 @@ class RoutineFormPage extends StatefulWidget {
 class _RoutineFormPageState extends State<RoutineFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  bool _strictOrder = false;
+  bool _orderIsRequired = false;
   final List<Exercise> _selectedExercises = [];
 
   @override
@@ -31,8 +31,23 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
     if (widget.isEditing && widget.routine != null) {
       // Pre-fill form with routine data
       _nameController.text = widget.routine!.name;
-      _strictOrder = widget.routine!.strictOrder;
-      _selectedExercises.addAll(widget.routine!.exercises);
+      _orderIsRequired = widget.routine!.orderIsRequired;
+
+      // Convert exerciseIds to Exercise objects
+      for (String exerciseId in widget.routine!.exerciseIds) {
+        final exercise = widget.availableExercises.firstWhere(
+          (ex) => ex.id == exerciseId,
+          orElse:
+              () => Exercise(
+                id: exerciseId,
+                userId: 'user1',
+                exerciseName: 'Unknown Exercise',
+                targetMuscles: ['Unknown'],
+                equipment: ['Unknown'],
+              ),
+        );
+        _selectedExercises.add(exercise);
+      }
     }
   }
 
@@ -46,8 +61,8 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
     if (_formKey.currentState!.validate()) {
       final routineData = {
         'name': _nameController.text,
-        'strictOrder': _strictOrder,
-        'exercises': _selectedExercises,
+        'orderIsRequired': _orderIsRequired,
+        'exerciseIds': _selectedExercises.map((e) => e.id).toList(),
       };
 
       widget.onSave(routineData);
@@ -108,10 +123,10 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   Switch(
-                    value: _strictOrder,
+                    value: _orderIsRequired,
                     onChanged: (value) {
                       setState(() {
-                        _strictOrder = value;
+                        _orderIsRequired = value;
                       });
                     },
                     activeColor: const Color(0xFF1B2027),
@@ -119,7 +134,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
                 ],
               ),
               Text(
-                _strictOrder
+                _orderIsRequired
                     ? 'Exercises must be performed in order'
                     : 'Exercises can be performed in any order',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
@@ -237,7 +252,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (context, setState /* this is the dialog’s setState */) {
+          builder: (context, setState /* this is the dialog's setState */) {
             return AlertDialog(
               backgroundColor: const Color(0xFFF9FAFB),
               title: const Text('Select Exercises'),
@@ -252,13 +267,13 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
                       (e) => e.id == exercise.id,
                     );
                     return CheckboxListTile(
-                      title: Text(exercise.name),
-                      subtitle: Text(exercise.muscleGroups.join(', ')),
+                      title: Text(exercise.exerciseName),
+                      subtitle: Text(exercise.targetMuscles.join(', ')),
                       value: isSelected,
                       activeColor: const Color(0xFF1B2027),
                       checkColor: Colors.white,
                       onChanged: (bool? value) {
-                        // first update the dialog’s state so the checkbox redraws immediately
+                        // first update the dialog's state so the checkbox redraws immediately
                         setState(() {
                           if (isSelected) {
                             _selectedExercises.removeWhere(
@@ -268,7 +283,7 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
                             _selectedExercises.add(exercise);
                           }
                         });
-                        // then call the parent’s setState so the card below the form also updates
+                        // then call the parent's setState so the card below the form also updates
                         this.setState(() {});
                       },
                     );
@@ -278,10 +293,10 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF1B2027),
                   ),
+                  child: const Text('Done'),
                 ),
               ],
             );
@@ -304,12 +319,12 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(_getIconForExercise(exercise.name), size: 30),
+              Icon(_getIconForExercise(exercise.exerciseName), size: 30),
               const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  exercise.name,
+                  exercise.exerciseName,
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 10),
                   maxLines: 2,

@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
-class Exercise {
-  final String name;
-  final List<String> muscleGroups;
+// These represent logged workout sessions, not the exercise definitions
+class LoggedExercise {
+  final String exerciseId; // Reference to exercise document
+  final String exerciseName; // Denormalized for display
+  final List<String> targetMuscles; // Denormalized for display
   final double weight;
   final int reps;
   final String equipment;
   final int sets;
   final DateTime date;
 
-  Exercise({
-    required this.name,
-    required this.muscleGroups,
+  LoggedExercise({
+    required this.exerciseId,
+    required this.exerciseName,
+    required this.targetMuscles,
     required this.weight,
     required this.reps,
     required this.equipment,
@@ -20,63 +23,96 @@ class Exercise {
   });
 }
 
-class Routine {
-  final String name;
-  final List<String> muscleGroups;
+class LoggedRoutine {
+  final String routineId; // Reference to routine document
+  final String name; // Denormalized for display
+  final List<String> targetMuscles; // Calculated from exercises
   final DateTime date;
 
-  Routine({required this.name, required this.muscleGroups, required this.date});
+  LoggedRoutine({
+    required this.routineId,
+    required this.name,
+    required this.targetMuscles,
+    required this.date,
+  });
+}
+
+class User {
+  final String name;
+  final String lastName;
+  final DateTime dateOfBirth;
+  final String email;
+  final double height; // in cm
+  final double weight; // in kg
+  final double fatPercentage; // %
+  final double musclePercentage; // %
+
+  User({
+    required this.name,
+    required this.lastName,
+    required this.dateOfBirth,
+    required this.email,
+    required this.height,
+    required this.weight,
+    required this.fatPercentage,
+    required this.musclePercentage,
+  });
 }
 
 class HomePage extends StatelessWidget {
   HomePage({super.key});
 
-  // Dummy data for recent exercises
-  final List<Exercise> recentExercises = [
-    Exercise(
-      name: 'Bench Press',
-      muscleGroups: ['Chest', 'Triceps'],
+  // Current user data
+  final User currentUser = User(
+    name: 'John',
+    lastName: 'Anderson',
+    dateOfBirth: DateTime(1990, 5, 15),
+    email: 'john.anderson@email.com',
+    height: 177.0,
+    weight: 75.0,
+    fatPercentage: 15.0,
+    musclePercentage: 40.0,
+  );
+
+  // Dummy data for recent logged exercises
+  final List<LoggedExercise> recentExercises = [
+    LoggedExercise(
+      exerciseId: '1',
+      exerciseName: 'Bench Press',
+      targetMuscles: ['Chest', 'Triceps'],
       weight: 50,
       reps: 8,
       equipment: 'Dumbbells',
       sets: 3,
       date: DateTime(2025, 4, 10),
     ),
-    Exercise(
-      name: 'Squats',
-      muscleGroups: ['Legs', 'Core'],
+    LoggedExercise(
+      exerciseId: '3',
+      exerciseName: 'Squats',
+      targetMuscles: ['Quads', 'Hamstrings', 'Glutes'],
       weight: 100,
       reps: 8,
-      equipment: 'Bar',
+      equipment: 'Barbell',
       sets: 3,
       date: DateTime(2025, 4, 9),
     ),
   ];
 
-  // Dummy data for recent routines
-  final List<Routine> recentRoutines = [
-    Routine(
+  // Dummy data for recent logged routines
+  final List<LoggedRoutine> recentRoutines = [
+    LoggedRoutine(
+      routineId: '2',
       name: 'Chest/Arms 4',
-      muscleGroups: ['Chest', 'Biceps', 'Triceps'],
+      targetMuscles: ['Chest', 'Biceps', 'Triceps'],
       date: DateTime(2025, 4, 10),
     ),
-    Routine(
+    LoggedRoutine(
+      routineId: '1',
       name: 'Legs/Shoulders 4',
-      muscleGroups: [
-        'Quads',
-        'Hamstrings',
-        'Glutes',
-        'Front delts',
-        'Side delts',
-        'Rear delts',
-      ],
+      targetMuscles: ['Quads', 'Hamstrings', 'Glutes', 'Shoulders'],
       date: DateTime(2025, 4, 9),
     ),
   ];
-
-  // Dummy data for body stats
-  final double weight = 157;
-  final double height = 1.77;
 
   @override
   Widget build(BuildContext context) {
@@ -102,8 +138,8 @@ class HomePage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatCard('Weight', '$weight lbs'),
-                _buildStatCard('Height', '$height cm'),
+                _buildStatCard('Weight', '${currentUser.weight} kg'),
+                _buildStatCard('Height', '${currentUser.height} cm'),
               ],
             ),
           ],
@@ -131,7 +167,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildExerciseCard(Exercise exercise) {
+  Widget _buildExerciseCard(LoggedExercise exercise) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -146,7 +182,7 @@ class HomePage extends StatelessWidget {
               children: [
                 // Exercise name
                 Text(
-                  exercise.name,
+                  exercise.exerciseName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -196,7 +232,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 4),
             // Muscle groups
             Text(
-              exercise.muscleGroups.join(', '),
+              exercise.targetMuscles.join(', '),
               style: TextStyle(color: Colors.grey.shade700),
             ),
             const SizedBox(height: 8),
@@ -216,7 +252,7 @@ class HomePage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
-                        '${exercise.weight.toInt()} lbs',
+                        '${exercise.weight.toInt()} kg',
                         style: TextStyle(color: Colors.grey.shade700),
                       ),
                     ),
@@ -250,7 +286,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildRoutineCard(Routine routine) {
+  Widget _buildRoutineCard(LoggedRoutine routine) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -285,7 +321,7 @@ class HomePage extends StatelessWidget {
             // Muscle group icons
             Row(
               children:
-                  routine.muscleGroups
+                  routine.targetMuscles
                       .map((muscle) => _buildMuscleIcon(muscle))
                       .toList(),
             ),

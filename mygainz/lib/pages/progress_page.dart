@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
+import '../providers/workout_provider.dart';
+import '../providers/units_provider.dart';
 import 'dart:math' as math;
 
 class ProgressPage extends StatefulWidget {
@@ -20,10 +23,10 @@ class _ProgressPageState extends State<ProgressPage> {
   final List<String> timePeriods = ['All Time', 'Last 6 Months', 'Last Month'];
   final List<String> equipmentOptions = [
     'All Equipment',
-    'Dumbbells',
-    'Barbells',
-    'Machines',
-    'Cables',
+    'Dumbbell',
+    'Barbell',
+    'Machine',
+    'Kettlebell',
   ];
   final List<String> muscleGroupOptions = [
     'All Muscles',
@@ -33,349 +36,164 @@ class _ProgressPageState extends State<ProgressPage> {
     'Arms',
     'Shoulders',
     'Core',
+    'Quads',
+    'Hamstrings',
+    'Glutes',
+    'Biceps',
+    'Triceps',
   ];
 
-  // Dummy data for muscle groups
-  final Map<String, double> muscleGroupExerciseCount = {
-    'Chest': 45,
-    'Back': 38,
-    'Legs': 52,
-    'Arms': 34,
-    'Shoulders': 28,
-    'Core': 31,
-    'Glutes': 25,
-    'Calves': 18,
-  };
+  // Helper method to filter exercises by time period
+  List<LoggedExercise> _filterExercisesByTime(List<LoggedExercise> exercises) {
+    final now = DateTime.now();
+    DateTime cutoffDate;
 
-  final Map<String, double> muscleGroupWeightProgress = {
-    'Chest': 85.5,
-    'Back': 92.0,
-    'Legs': 120.0,
-    'Arms': 67.5,
-    'Shoulders': 45.0,
-    'Core': 25.0,
-    'Glutes': 78.0,
-    'Calves': 35.0,
-  };
+    switch (selectedTimePeriod) {
+      case 'Last Month':
+        cutoffDate = now.subtract(const Duration(days: 30));
+        break;
+      case 'Last 6 Months':
+        cutoffDate = now.subtract(const Duration(days: 180));
+        break;
+      default: // All Time
+        return exercises;
+    }
 
-  // Updated equipment performance data by muscle group
-  final Map<String, Map<String, List<FlSpot>>> equipmentPerformanceByMuscle = {
-    'Chest': {
-      'Dumbbells': [
-        FlSpot(0, 25),
-        FlSpot(1, 30),
-        FlSpot(2, 35),
-        FlSpot(3, 32),
-        FlSpot(4, 40),
-        FlSpot(5, 47),
-        FlSpot(6, 50),
-      ],
-      'Barbells': [
-        FlSpot(0, 50),
-        FlSpot(1, 55),
-        FlSpot(2, 52),
-        FlSpot(3, 58),
-        FlSpot(4, 65),
-        FlSpot(5, 70),
-        FlSpot(6, 75),
-      ],
-      'Machines': [
-        FlSpot(0, 35),
-        FlSpot(1, 40),
-        FlSpot(2, 43),
-        FlSpot(3, 45),
-        FlSpot(4, 50),
-        FlSpot(5, 55),
-        FlSpot(6, 60),
-      ],
-      'Cables': [
-        FlSpot(0, 20),
-        FlSpot(1, 25),
-        FlSpot(2, 30),
-        FlSpot(3, 33),
-        FlSpot(4, 37),
-        FlSpot(5, 40),
-        FlSpot(6, 43),
-      ],
-    },
-    'Back': {
-      'Dumbbells': [
-        FlSpot(0, 30),
-        FlSpot(1, 35),
-        FlSpot(2, 40),
-        FlSpot(3, 38),
-        FlSpot(4, 45),
-        FlSpot(5, 52),
-        FlSpot(6, 55),
-      ],
-      'Barbells': [
-        FlSpot(0, 60),
-        FlSpot(1, 65),
-        FlSpot(2, 62),
-        FlSpot(3, 68),
-        FlSpot(4, 75),
-        FlSpot(5, 80),
-        FlSpot(6, 85),
-      ],
-      'Machines': [
-        FlSpot(0, 45),
-        FlSpot(1, 50),
-        FlSpot(2, 53),
-        FlSpot(3, 55),
-        FlSpot(4, 60),
-        FlSpot(5, 65),
-        FlSpot(6, 70),
-      ],
-      'Cables': [
-        FlSpot(0, 25),
-        FlSpot(1, 30),
-        FlSpot(2, 35),
-        FlSpot(3, 38),
-        FlSpot(4, 42),
-        FlSpot(5, 45),
-        FlSpot(6, 48),
-      ],
-    },
-    'Legs': {
-      'Dumbbells': [
-        FlSpot(0, 40),
-        FlSpot(1, 45),
-        FlSpot(2, 50),
-        FlSpot(3, 48),
-        FlSpot(4, 55),
-        FlSpot(5, 62),
-        FlSpot(6, 65),
-      ],
-      'Barbells': [
-        FlSpot(0, 80),
-        FlSpot(1, 85),
-        FlSpot(2, 82),
-        FlSpot(3, 88),
-        FlSpot(4, 95),
-        FlSpot(5, 100),
-        FlSpot(6, 105),
-      ],
-      'Machines': [
-        FlSpot(0, 60),
-        FlSpot(1, 65),
-        FlSpot(2, 68),
-        FlSpot(3, 70),
-        FlSpot(4, 75),
-        FlSpot(5, 80),
-        FlSpot(6, 85),
-      ],
-      'Cables': [
-        FlSpot(0, 30),
-        FlSpot(1, 35),
-        FlSpot(2, 40),
-        FlSpot(3, 43),
-        FlSpot(4, 47),
-        FlSpot(5, 50),
-        FlSpot(6, 53),
-      ],
-    },
-    'Arms': {
-      'Dumbbells': [
-        FlSpot(0, 15),
-        FlSpot(1, 20),
-        FlSpot(2, 25),
-        FlSpot(3, 23),
-        FlSpot(4, 30),
-        FlSpot(5, 37),
-        FlSpot(6, 40),
-      ],
-      'Barbells': [
-        FlSpot(0, 30),
-        FlSpot(1, 35),
-        FlSpot(2, 32),
-        FlSpot(3, 38),
-        FlSpot(4, 45),
-        FlSpot(5, 50),
-        FlSpot(6, 55),
-      ],
-      'Machines': [
-        FlSpot(0, 25),
-        FlSpot(1, 30),
-        FlSpot(2, 33),
-        FlSpot(3, 35),
-        FlSpot(4, 40),
-        FlSpot(5, 45),
-        FlSpot(6, 50),
-      ],
-      'Cables': [
-        FlSpot(0, 10),
-        FlSpot(1, 15),
-        FlSpot(2, 20),
-        FlSpot(3, 23),
-        FlSpot(4, 27),
-        FlSpot(5, 30),
-        FlSpot(6, 33),
-      ],
-    },
-    'Shoulders': {
-      'Dumbbells': [
-        FlSpot(0, 10),
-        FlSpot(1, 15),
-        FlSpot(2, 20),
-        FlSpot(3, 18),
-        FlSpot(4, 25),
-        FlSpot(5, 32),
-        FlSpot(6, 35),
-      ],
-      'Barbells': [
-        FlSpot(0, 20),
-        FlSpot(1, 25),
-        FlSpot(2, 22),
-        FlSpot(3, 28),
-        FlSpot(4, 35),
-        FlSpot(5, 40),
-        FlSpot(6, 45),
-      ],
-      'Machines': [
-        FlSpot(0, 15),
-        FlSpot(1, 20),
-        FlSpot(2, 23),
-        FlSpot(3, 25),
-        FlSpot(4, 30),
-        FlSpot(5, 35),
-        FlSpot(6, 40),
-      ],
-      'Cables': [
-        FlSpot(0, 8),
-        FlSpot(1, 12),
-        FlSpot(2, 17),
-        FlSpot(3, 20),
-        FlSpot(4, 24),
-        FlSpot(5, 27),
-        FlSpot(6, 30),
-      ],
-    },
-    'Core': {
-      'Dumbbells': [
-        FlSpot(0, 5),
-        FlSpot(1, 8),
-        FlSpot(2, 12),
-        FlSpot(3, 10),
-        FlSpot(4, 15),
-        FlSpot(5, 20),
-        FlSpot(6, 23),
-      ],
-      'Barbells': [
-        FlSpot(0, 10),
-        FlSpot(1, 15),
-        FlSpot(2, 12),
-        FlSpot(3, 18),
-        FlSpot(4, 25),
-        FlSpot(5, 30),
-        FlSpot(6, 35),
-      ],
-      'Machines': [
-        FlSpot(0, 8),
-        FlSpot(1, 12),
-        FlSpot(2, 15),
-        FlSpot(3, 17),
-        FlSpot(4, 22),
-        FlSpot(5, 27),
-        FlSpot(6, 32),
-      ],
-      'Cables': [
-        FlSpot(0, 3),
-        FlSpot(1, 7),
-        FlSpot(2, 12),
-        FlSpot(3, 15),
-        FlSpot(4, 19),
-        FlSpot(5, 22),
-        FlSpot(6, 25),
-      ],
-    },
-  };
+    return exercises
+        .where((exercise) => exercise.date.isAfter(cutoffDate))
+        .toList();
+  }
 
-  // Equipment performance data (fallback for 'All Muscles')
-  final Map<String, List<FlSpot>> equipmentPerformanceData = {
-    'Dumbbells': [
-      FlSpot(0, 20),
-      FlSpot(1, 25),
-      FlSpot(2, 30),
-      FlSpot(3, 28),
-      FlSpot(4, 35),
-      FlSpot(5, 42),
-      FlSpot(6, 45),
-    ],
-    'Barbells': [
-      FlSpot(0, 40),
-      FlSpot(1, 45),
-      FlSpot(2, 42),
-      FlSpot(3, 48),
-      FlSpot(4, 55),
-      FlSpot(5, 60),
-      FlSpot(6, 65),
-    ],
-    'Machines': [
-      FlSpot(0, 30),
-      FlSpot(1, 35),
-      FlSpot(2, 38),
-      FlSpot(3, 40),
-      FlSpot(4, 45),
-      FlSpot(5, 50),
-      FlSpot(6, 55),
-    ],
-    'Cables': [
-      FlSpot(0, 15),
-      FlSpot(1, 20),
-      FlSpot(2, 25),
-      FlSpot(3, 28),
-      FlSpot(4, 32),
-      FlSpot(5, 35),
-      FlSpot(6, 38),
-    ],
-  };
+  // Calculate muscle group exercise counts
+  Map<String, double> _calculateMuscleGroupCounts(
+      List<LoggedExercise> exercises) {
+    final Map<String, double> counts = {};
 
-  // Equipment improvement by muscle group
-  final Map<String, Map<String, double>> equipmentImprovementByMuscle = {
-    'Chest': {
-      'Dumbbells': 18.0,
-      'Barbells': 12.0,
-      'Machines': 15.0,
-      'Cables': 20.0,
-    },
-    'Back': {
-      'Dumbbells': 16.0,
-      'Barbells': 10.0,
-      'Machines': 13.0,
-      'Cables': 18.0,
-    },
-    'Legs': {
-      'Dumbbells': 14.0,
-      'Barbells': 8.0,
-      'Machines': 11.0,
-      'Cables': 16.0,
-    },
-    'Arms': {
-      'Dumbbells': 22.0,
-      'Barbells': 15.0,
-      'Machines': 18.0,
-      'Cables': 25.0,
-    },
-    'Shoulders': {
-      'Dumbbells': 24.0,
-      'Barbells': 20.0,
-      'Machines': 22.0,
-      'Cables': 28.0,
-    },
-    'Core': {
-      'Dumbbells': 30.0,
-      'Barbells': 25.0,
-      'Machines': 28.0,
-      'Cables': 35.0,
-    },
-  };
+    for (final exercise in exercises) {
+      for (final muscle in exercise.targetMuscles) {
+        counts[muscle] = (counts[muscle] ?? 0) + 1;
+      }
+    }
 
-  final Map<String, double> equipmentImprovement = {
-    'Dumbbells': 15.0,
-    'Barbells': 8.0,
-    'Machines': 12.0,
-    'Cables': 10.0,
-  };
+    return counts;
+  }
+
+  // Calculate average weights per muscle group
+  Map<String, double> _calculateMuscleGroupWeights(
+      List<LoggedExercise> exercises) {
+    final Map<String, List<double>> weightsByMuscle = {};
+
+    for (final exercise in exercises) {
+      for (final muscle in exercise.targetMuscles) {
+        weightsByMuscle[muscle] = (weightsByMuscle[muscle] ?? [])
+          ..add(exercise.weight);
+      }
+    }
+
+    final Map<String, double> averageWeights = {};
+    weightsByMuscle.forEach((muscle, weights) {
+      averageWeights[muscle] = weights.reduce((a, b) => a + b) / weights.length;
+    });
+
+    return averageWeights;
+  }
+
+  // Calculate equipment performance over time
+  Map<String, List<FlSpot>> _calculateEquipmentPerformance(
+      List<LoggedExercise> exercises) {
+    if (exercises.isEmpty) return {};
+
+    // Group exercises by equipment and month
+    final Map<String, Map<int, List<double>>> equipmentData = {};
+    final earliestDate =
+        exercises.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b);
+
+    for (final exercise in exercises) {
+      final monthsFromStart =
+          exercise.date.difference(earliestDate).inDays ~/ 30;
+
+      // Filter by muscle group if selected
+      if (selectedMuscleGroup != 'All Muscles' &&
+          !exercise.targetMuscles.contains(selectedMuscleGroup)) {
+        continue;
+      }
+
+      equipmentData[exercise.equipment] =
+          equipmentData[exercise.equipment] ?? {};
+      equipmentData[exercise.equipment]![monthsFromStart] =
+          (equipmentData[exercise.equipment]![monthsFromStart] ?? [])
+            ..add(exercise.weight);
+    }
+
+    // Convert to FlSpot data
+    final Map<String, List<FlSpot>> result = {};
+    equipmentData.forEach((equipment, monthlyData) {
+      final spots = <FlSpot>[];
+      final sortedMonths = monthlyData.keys.toList()..sort();
+
+      for (final month in sortedMonths) {
+        final weights = monthlyData[month]!;
+        final avgWeight = weights.reduce((a, b) => a + b) / weights.length;
+        spots.add(FlSpot(month.toDouble(), avgWeight));
+      }
+
+      result[equipment] = spots;
+    });
+
+    return result;
+  }
+
+  // Calculate improvement percentages for equipment
+  Map<String, double> _calculateEquipmentImprovement(
+      List<LoggedExercise> exercises) {
+    if (exercises.isEmpty) return {};
+
+    final Map<String, double> improvements = {};
+    final equipmentGroups = <String, List<LoggedExercise>>{};
+
+    // Group exercises by equipment
+    for (final exercise in exercises) {
+      // Filter by muscle group if selected
+      if (selectedMuscleGroup != 'All Muscles' &&
+          !exercise.targetMuscles.contains(selectedMuscleGroup)) {
+        continue;
+      }
+
+      equipmentGroups[exercise.equipment] =
+          (equipmentGroups[exercise.equipment] ?? [])..add(exercise);
+    }
+
+    // Calculate improvement for each equipment
+    equipmentGroups.forEach((equipment, exerciseList) {
+      if (exerciseList.length < 2) {
+        improvements[equipment] = 0.0;
+        return;
+      }
+
+      // Sort by date
+      exerciseList.sort((a, b) => a.date.compareTo(b.date));
+
+      // Take first and last quarters for comparison
+      final quarterSize = math.max(1, exerciseList.length ~/ 4);
+      final firstQuarter = exerciseList.take(quarterSize).toList();
+      final lastQuarter =
+          exerciseList.skip(exerciseList.length - quarterSize).toList();
+
+      final firstAvg =
+          firstQuarter.map((e) => e.weight).reduce((a, b) => a + b) /
+              firstQuarter.length;
+      final lastAvg = lastQuarter.map((e) => e.weight).reduce((a, b) => a + b) /
+          lastQuarter.length;
+
+      if (firstAvg > 0) {
+        improvements[equipment] = ((lastAvg - firstAvg) / firstAvg) * 100;
+      } else {
+        improvements[equipment] = 0.0;
+      }
+    });
+
+    return improvements;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,18 +214,22 @@ class _ProgressPageState extends State<ProgressPage> {
             const SizedBox(height: 24),
 
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Muscle Group Progress Section
-                    _buildMuscleGroupProgressSection(),
-                    const SizedBox(height: 32),
+              child: Consumer<WorkoutProvider>(
+                builder: (context, workoutProvider, child) {
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Muscle Group Progress Section
+                        _buildMuscleGroupProgressSection(workoutProvider),
+                        const SizedBox(height: 32),
 
-                    // Equipment Performance Section
-                    _buildEquipmentPerformanceSection(),
-                  ],
-                ),
+                        // Equipment Performance Section
+                        _buildEquipmentPerformanceSection(workoutProvider),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -418,36 +240,40 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Widget _buildTimePeriodFilter() {
     return Row(
-      children:
-          timePeriods.map((period) {
-            final isSelected = selectedTimePeriod == period;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(period),
-                selected: isSelected,
-                selectedColor: const Color(0xFF1B2027),
-                backgroundColor: Colors.grey.shade200,
-                checkmarkColor: Colors.white,
-                labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black87,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-                onSelected: (selected) {
-                  if (selected) {
-                    setState(() => selectedTimePeriod = period);
-                  }
-                },
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            );
-          }).toList(),
+      children: timePeriods.map((period) {
+        final isSelected = selectedTimePeriod == period;
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: FilterChip(
+            label: Text(period),
+            selected: isSelected,
+            selectedColor: const Color(0xFF1B2027),
+            backgroundColor: Colors.grey.shade200,
+            checkmarkColor: Colors.white,
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : Colors.black87,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+            onSelected: (selected) {
+              if (selected) {
+                setState(() => selectedTimePeriod = period);
+              }
+            },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildMuscleGroupProgressSection() {
+  Widget _buildMuscleGroupProgressSection(WorkoutProvider workoutProvider) {
+    final filteredExercises =
+        _filterExercisesByTime(workoutProvider.loggedExercises);
+    final muscleGroupCounts = _calculateMuscleGroupCounts(filteredExercises);
+    final muscleGroupWeights = _calculateMuscleGroupWeights(filteredExercises);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -474,62 +300,67 @@ class _ProgressPageState extends State<ProgressPage> {
         const SizedBox(height: 16),
 
         // Metric toggle
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => showWeightProgress = false),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color:
-                        !showWeightProgress
+        Consumer<UnitsProvider>(
+          builder: (context, unitsProvider, child) {
+            return Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => showWeightProgress = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: !showWeightProgress
                             ? const Color(0xFF1B2027)
                             : Colors.grey.shade200,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      bottomLeft: Radius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Times Exercised',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color:
-                          !showWeightProgress ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w500,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Times Exercised',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: !showWeightProgress
+                              ? Colors.white
+                              : Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => showWeightProgress = true),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color:
-                        showWeightProgress
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => showWeightProgress = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: showWeightProgress
                             ? const Color(0xFF1B2027)
                             : Colors.grey.shade200,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(8),
-                      bottomRight: Radius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Weight Progress (kg)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: showWeightProgress ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w500,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Weight Progress (${unitsProvider.weightUnit})',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: showWeightProgress
+                              ? Colors.white
+                              : Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
         const SizedBox(height: 16),
 
@@ -542,111 +373,252 @@ class _ProgressPageState extends State<ProgressPage> {
             color: const Color(0xFF1B2027),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: isSpiderView ? _buildSpiderChart() : _buildBarChart(),
+          child: filteredExercises.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No exercise data available\nStart logging workouts to see progress!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                )
+              : (isSpiderView &&
+                      (showWeightProgress
+                                  ? muscleGroupWeights
+                                  : muscleGroupCounts)
+                              .length >=
+                          3)
+                  ? _buildSpiderChart(muscleGroupCounts, muscleGroupWeights)
+                  : _buildBarChart(muscleGroupCounts, muscleGroupWeights),
         ),
+
+        // Add helpful message when spider view is selected but insufficient data
+        if (isSpiderView &&
+            filteredExercises.isNotEmpty &&
+            (showWeightProgress ? muscleGroupWeights : muscleGroupCounts)
+                    .length <
+                3) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    color: Colors.orange.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Showing Bar Chart: Spider view needs 3+ muscle groups. Log exercises targeting different muscles!',
+                    style: TextStyle(
+                      color: Colors.orange.shade800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildSpiderChart() {
-    final data =
-        showWeightProgress
-            ? muscleGroupWeightProgress
-            : muscleGroupExerciseCount;
-    final maxValue = data.values.reduce(math.max);
+  Widget _buildSpiderChart(Map<String, double> muscleGroupCounts,
+      Map<String, double> muscleGroupWeights) {
+    final data = showWeightProgress ? muscleGroupWeights : muscleGroupCounts;
 
-    return RadarChart(
-      RadarChartData(
-        dataSets: [
-          RadarDataSet(
-            fillColor: Colors.orange.withOpacity(0.3),
-            borderColor: Colors.orange,
-            borderWidth: 2,
-            dataEntries:
-                data.entries.map((entry) {
-                  return RadarEntry(value: entry.value / maxValue * 100);
-                }).toList(),
+    if (data.isEmpty) {
+      return const Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+      );
+    }
+
+    // Radar chart requires at least 3 data points
+    if (data.length < 3) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.info_outline,
+            color: Colors.white70,
+            size: 48,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Spider View requires at least 3 muscle groups',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Log more diverse exercises to unlock this view!',
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Current: ${data.length} muscle groups',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
-        radarShape: RadarShape.polygon,
-        tickCount: 5,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 12),
-        getTitle: (index, angle) {
-          final titles = data.keys.toList();
-          return RadarChartTitle(text: titles[index], angle: angle);
-        },
-        gridBorderData: const BorderSide(color: Colors.white24, width: 1),
-        tickBorderData: const BorderSide(color: Colors.white24, width: 1),
-        radarBorderData: const BorderSide(color: Colors.white24, width: 1),
-        ticksTextStyle: const TextStyle(color: Colors.white70, fontSize: 10),
-      ),
+      );
+    }
+
+    final maxValue = data.values.reduce(math.max);
+    if (maxValue == 0) {
+      return const Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+      );
+    }
+
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        // Convert weights if needed
+        final displayData = <String, double>{};
+        data.forEach((muscle, value) {
+          if (showWeightProgress) {
+            displayData[muscle] = unitsProvider.convertWeight(value);
+          } else {
+            displayData[muscle] = value;
+          }
+        });
+
+        final displayMaxValue = displayData.values.reduce(math.max);
+
+        return RadarChart(
+          RadarChartData(
+            dataSets: [
+              RadarDataSet(
+                fillColor: Colors.orange.withValues(alpha: 0.3),
+                borderColor: Colors.orange,
+                borderWidth: 2,
+                dataEntries: displayData.entries.map((entry) {
+                  return RadarEntry(value: entry.value / displayMaxValue * 100);
+                }).toList(),
+              ),
+            ],
+            radarShape: RadarShape.polygon,
+            tickCount: 5,
+            titleTextStyle: const TextStyle(color: Colors.white, fontSize: 12),
+            getTitle: (index, angle) {
+              final titles = displayData.keys.toList();
+              return RadarChartTitle(text: titles[index], angle: angle);
+            },
+            gridBorderData: const BorderSide(color: Colors.white24, width: 1),
+            tickBorderData: const BorderSide(color: Colors.white24, width: 1),
+            radarBorderData: const BorderSide(color: Colors.white24, width: 1),
+            ticksTextStyle:
+                const TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildBarChart() {
-    final data =
-        showWeightProgress
-            ? muscleGroupWeightProgress
-            : muscleGroupExerciseCount;
-    final maxValue = data.values.reduce(math.max);
+  Widget _buildBarChart(Map<String, double> muscleGroupCounts,
+      Map<String, double> muscleGroupWeights) {
+    final data = showWeightProgress ? muscleGroupWeights : muscleGroupCounts;
 
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxValue * 1.2,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                final titles = data.keys.toList();
-                if (value.toInt() < titles.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      titles[value.toInt()],
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
-                return const Text('');
+    if (data.isEmpty) {
+      return const Center(
+        child: Text(
+          'No data available',
+          style: TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+      );
+    }
+
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        // Convert weights if needed
+        final displayData = <String, double>{};
+        data.forEach((muscle, value) {
+          if (showWeightProgress) {
+            displayData[muscle] = unitsProvider.convertWeight(value);
+          } else {
+            displayData[muscle] = value;
+          }
+        });
+
+        if (displayData.isEmpty) {
+          return const Center(
+            child: Text(
+              'No data available',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          );
+        }
+
+        final maxValue = displayData.values.reduce(math.max);
+
+        return BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxValue * 1.2,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    final titles = displayData.keys.toList();
+                    if (value.toInt() < titles.length) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          titles[value.toInt()],
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      value.toInt().toString(),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 10),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+            ),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: maxValue / 5,
+              getDrawingHorizontalLine: (value) {
+                return const FlLine(color: Colors.white24, strokeWidth: 1);
               },
             ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
-                );
-              },
-            ),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: maxValue / 5,
-          getDrawingHorizontalLine: (value) {
-            return const FlLine(color: Colors.white24, strokeWidth: 1);
-          },
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups:
-            data.entries.map((entry) {
-              final index = data.keys.toList().indexOf(entry.key);
+            borderData: FlBorderData(show: false),
+            barGroups: displayData.entries.map((entry) {
+              final index = displayData.keys.toList().indexOf(entry.key);
               return BarChartGroupData(
                 x: index,
                 barRods: [
@@ -662,11 +634,16 @@ class _ProgressPageState extends State<ProgressPage> {
                 ],
               );
             }).toList(),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildEquipmentPerformanceSection() {
+  Widget _buildEquipmentPerformanceSection(WorkoutProvider workoutProvider) {
+    final filteredExercises =
+        _filterExercisesByTime(workoutProvider.loggedExercises);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -696,15 +673,13 @@ class _ProgressPageState extends State<ProgressPage> {
                     onChanged: (String? newValue) {
                       setState(() => selectedMuscleGroup = newValue!);
                     },
-                    items:
-                        muscleGroupOptions.map<DropdownMenuItem<String>>((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                    items: muscleGroupOptions
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -727,15 +702,13 @@ class _ProgressPageState extends State<ProgressPage> {
                     onChanged: (String? newValue) {
                       setState(() => selectedEquipment = newValue!);
                     },
-                    items:
-                        equipmentOptions.map<DropdownMenuItem<String>>((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
+                    items: equipmentOptions
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -752,108 +725,122 @@ class _ProgressPageState extends State<ProgressPage> {
             color: const Color(0xFF1B2027),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: _buildEquipmentLineChart(),
+          child: filteredExercises.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No exercise data available\nStart logging workouts to see trends!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                )
+              : _buildEquipmentLineChart(filteredExercises),
         ),
         const SizedBox(height: 16),
 
         // Equipment list with improvements for selected muscle group
-        _buildEquipmentListForMuscleGroup(),
+        _buildEquipmentListForMuscleGroup(filteredExercises),
       ],
     );
   }
 
-  Widget _buildEquipmentLineChart() {
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 10,
-          getDrawingHorizontalLine: (value) {
-            return const FlLine(color: Colors.white24, strokeWidth: 1);
-          },
+  Widget _buildEquipmentLineChart(List<LoggedExercise> exercises) {
+    final equipmentData = _calculateEquipmentPerformance(exercises);
+
+    if (equipmentData.isEmpty) {
+      return const Center(
+        child: Text(
+          'No performance data available',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
         ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  '${value.toInt()}kg',
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
-                );
+      );
+    }
+
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        return LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: 10,
+              getDrawingHorizontalLine: (value) {
+                return const FlLine(color: Colors.white24, strokeWidth: 1);
               },
             ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              getTitlesWidget: (value, meta) {
-                final months = [
-                  'Jan',
-                  'Feb',
-                  'Mar',
-                  'Apr',
-                  'May',
-                  'Jun',
-                  'Jul',
-                ];
-                if (value.toInt() < months.length) {
-                  return Text(
-                    months[value.toInt()],
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  );
-                }
-                return const Text('');
-              },
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    final displayValue = unitsProvider.convertWeight(value);
+                    return Text(
+                      '${displayValue.toInt()}${unitsProvider.weightUnit}',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 10),
+                    );
+                  },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 30,
+                  getTitlesWidget: (value, meta) {
+                    // Show month indicators
+                    return Text(
+                      'M${value.toInt() + 1}',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 10),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
+            borderData: FlBorderData(show: false),
+            lineBarsData: _getEquipmentLineData(equipmentData, unitsProvider),
           ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        lineBarsData: _getEquipmentLineData(),
-      ),
+        );
+      },
     );
   }
 
-  List<LineChartBarData> _getEquipmentLineData() {
-    // Get data based on selected muscle group
-    final Map<String, List<FlSpot>> currentData =
-        selectedMuscleGroup == 'All Muscles'
-            ? equipmentPerformanceData
-            : equipmentPerformanceByMuscle[selectedMuscleGroup] ??
-                equipmentPerformanceData;
-
+  List<LineChartBarData> _getEquipmentLineData(
+      Map<String, List<FlSpot>> equipmentData, UnitsProvider unitsProvider) {
     if (selectedEquipment == 'All Equipment') {
-      // Show all equipment lines for the selected muscle group
-      return currentData.entries.map((entry) {
+      // Show all equipment lines
+      return equipmentData.entries.map((entry) {
         Color lineColor;
         switch (entry.key) {
-          case 'Dumbbells':
+          case 'Dumbbell':
             lineColor = Colors.blue;
             break;
-          case 'Barbells':
+          case 'Barbell':
             lineColor = Colors.green;
             break;
-          case 'Machines':
+          case 'Machine':
             lineColor = Colors.purple;
             break;
-          case 'Cables':
+          case 'Kettlebell':
             lineColor = Colors.orange;
             break;
           default:
             lineColor = Colors.white;
         }
 
+        // Convert weights to display units
+        final convertedSpots = entry.value.map((spot) {
+          return FlSpot(spot.x, unitsProvider.convertWeight(spot.y));
+        }).toList();
+
         return LineChartBarData(
-          spots: entry.value,
+          spots: convertedSpots,
           isCurved: true,
           color: lineColor,
           barWidth: 3,
@@ -862,71 +849,71 @@ class _ProgressPageState extends State<ProgressPage> {
         );
       }).toList();
     } else {
-      // Show selected equipment only for the selected muscle group
-      final data = currentData[selectedEquipment] ?? [];
+      // Show selected equipment only
+      final data = equipmentData[selectedEquipment] ?? [];
+      if (data.isEmpty) return [];
+
+      // Convert weights to display units
+      final convertedSpots = data.map((spot) {
+        return FlSpot(spot.x, unitsProvider.convertWeight(spot.y));
+      }).toList();
+
       return [
         LineChartBarData(
-          spots: data,
+          spots: convertedSpots,
           isCurved: true,
           color: Colors.orange,
           barWidth: 3,
           dotData: const FlDotData(show: true),
           belowBarData: BarAreaData(
             show: true,
-            color: Colors.orange.withOpacity(0.2),
+            color: Colors.orange.withValues(alpha: 0.2),
           ),
         ),
       ];
     }
   }
 
-  Widget _buildEquipmentListForMuscleGroup() {
-    // Get the appropriate equipment data based on selected muscle group
-    final Map<String, List<FlSpot>> currentData =
-        selectedMuscleGroup == 'All Muscles'
-            ? equipmentPerformanceData
-            : equipmentPerformanceByMuscle[selectedMuscleGroup] ??
-                equipmentPerformanceData;
+  Widget _buildEquipmentListForMuscleGroup(List<LoggedExercise> exercises) {
+    final equipmentImprovement = _calculateEquipmentImprovement(exercises);
 
-    final Map<String, double> currentImprovement =
-        selectedMuscleGroup == 'All Muscles'
-            ? equipmentImprovement
-            : equipmentImprovementByMuscle[selectedMuscleGroup] ??
-                equipmentImprovement;
+    if (equipmentImprovement.isEmpty) {
+      return const Text(
+        'No equipment data available for the selected filters.',
+        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (selectedMuscleGroup != 'All Muscles') ...[
           Text(
-            'Performance for ${selectedMuscleGroup}',
+            'Performance for $selectedMuscleGroup',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 12),
         ],
-        ...currentData.keys.map(
-          (equipment) => _buildEquipmentItem(equipment, currentImprovement),
+        ...equipmentImprovement.entries.map(
+          (entry) => _buildEquipmentItem(entry.key, entry.value),
         ),
       ],
     );
   }
 
-  Widget _buildEquipmentItem(
-    String equipment,
-    Map<String, double> improvementData,
-  ) {
+  Widget _buildEquipmentItem(String equipment, double improvement) {
     Color dotColor;
     switch (equipment) {
-      case 'Dumbbells':
+      case 'Dumbbell':
         dotColor = Colors.blue;
         break;
-      case 'Barbells':
+      case 'Barbell':
         dotColor = Colors.green;
         break;
-      case 'Machines':
+      case 'Machine':
         dotColor = Colors.purple;
         break;
-      case 'Cables':
+      case 'Kettlebell':
         dotColor = Colors.orange;
         break;
       default:
@@ -950,9 +937,9 @@ class _ProgressPageState extends State<ProgressPage> {
             ),
           ),
           Text(
-            '+${improvementData[equipment]?.toStringAsFixed(0) ?? '0'}%',
-            style: const TextStyle(
-              color: Colors.green,
+            '${improvement >= 0 ? '+' : ''}${improvement.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: improvement >= 0 ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
             ),
           ),

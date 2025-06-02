@@ -1,150 +1,115 @@
 import 'package:flutter/material.dart';
-
-// These represent logged workout sessions, not the exercise definitions
-class LoggedExercise {
-  final String exerciseId; // Reference to exercise document
-  final String exerciseName; // Denormalized for display
-  final List<String> targetMuscles; // Denormalized for display
-  final double weight;
-  final int reps;
-  final String equipment;
-  final int sets;
-  final DateTime date;
-
-  LoggedExercise({
-    required this.exerciseId,
-    required this.exerciseName,
-    required this.targetMuscles,
-    required this.weight,
-    required this.reps,
-    required this.equipment,
-    required this.sets,
-    required this.date,
-  });
-}
-
-class LoggedRoutine {
-  final String routineId; // Reference to routine document
-  final String name; // Denormalized for display
-  final List<String> targetMuscles; // Calculated from exercises
-  final DateTime date;
-
-  LoggedRoutine({
-    required this.routineId,
-    required this.name,
-    required this.targetMuscles,
-    required this.date,
-  });
-}
-
-class User {
-  final String name;
-  final String lastName;
-  final DateTime dateOfBirth;
-  final String email;
-  final double height; // in cm
-  final double weight; // in kg
-  final double fatPercentage; // %
-  final double musclePercentage; // %
-
-  User({
-    required this.name,
-    required this.lastName,
-    required this.dateOfBirth,
-    required this.email,
-    required this.height,
-    required this.weight,
-    required this.fatPercentage,
-    required this.musclePercentage,
-  });
-}
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/units_provider.dart';
+import '../providers/workout_provider.dart';
 
 class HomePage extends StatelessWidget {
-  HomePage({super.key});
-
-  // Current user data
-  final User currentUser = User(
-    name: 'John',
-    lastName: 'Anderson',
-    dateOfBirth: DateTime(1990, 5, 15),
-    email: 'john.anderson@email.com',
-    height: 177.0,
-    weight: 75.0,
-    fatPercentage: 15.0,
-    musclePercentage: 40.0,
-  );
-
-  // Dummy data for recent logged exercises
-  final List<LoggedExercise> recentExercises = [
-    LoggedExercise(
-      exerciseId: '1',
-      exerciseName: 'Bench Press',
-      targetMuscles: ['Chest', 'Triceps'],
-      weight: 50,
-      reps: 8,
-      equipment: 'Dumbbells',
-      sets: 3,
-      date: DateTime(2025, 4, 10),
-    ),
-    LoggedExercise(
-      exerciseId: '3',
-      exerciseName: 'Squats',
-      targetMuscles: ['Quads', 'Hamstrings', 'Glutes'],
-      weight: 100,
-      reps: 8,
-      equipment: 'Barbell',
-      sets: 3,
-      date: DateTime(2025, 4, 9),
-    ),
-  ];
-
-  // Dummy data for recent logged routines
-  final List<LoggedRoutine> recentRoutines = [
-    LoggedRoutine(
-      routineId: '2',
-      name: 'Chest/Arms 4',
-      targetMuscles: ['Chest', 'Biceps', 'Triceps'],
-      date: DateTime(2025, 4, 10),
-    ),
-    LoggedRoutine(
-      routineId: '1',
-      name: 'Legs/Shoulders 4',
-      targetMuscles: ['Quads', 'Hamstrings', 'Glutes', 'Shoulders'],
-      date: DateTime(2025, 4, 9),
-    ),
-  ];
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildOverviewCard(),
+              const SizedBox(height: 16),
+              _buildRecentActivityCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverviewCard() {
+    return Consumer2<AuthProvider, UnitsProvider>(
+      builder: (context, authProvider, unitsProvider, child) {
+        final currentUser = authProvider.currentUser;
+
+        return Card(
+          color: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('Overview'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildStatCard(
+                        'Weight',
+                        currentUser != null
+                            ? unitsProvider.formatWeight(currentUser.weight)
+                            : 'No data'),
+                    _buildStatCard(
+                        'Height',
+                        currentUser != null
+                            ? unitsProvider.formatHeight(currentUser.height)
+                            : 'No data'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentActivityCard() {
+    return Consumer2<AuthProvider, WorkoutProvider>(
+      builder: (context, authProvider, workoutProvider, child) {
+        final currentUser = authProvider.currentUser;
+        final recentExercises = workoutProvider.recentExercises;
+        final recentRoutines = workoutProvider.recentRoutines;
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Personalized greeting
+            if (currentUser != null) ...[
+              Text(
+                'Welcome back, ${currentUser.name}!',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Manrope',
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
             // Recent Exercises Section
             _buildSectionHeader('Recent exercises'),
-            ...recentExercises.map((exercise) => _buildExerciseCard(exercise)),
+            if (recentExercises.isEmpty)
+              _buildEmptyState(
+                  'No exercises logged yet. Start by logging your first workout!')
+            else
+              ...recentExercises
+                  .map((exercise) => _buildExerciseCard(exercise)),
 
             const SizedBox(height: 24),
 
             // Recent Routines Section
             _buildSectionHeader('Recent Routines'),
-            ...recentRoutines.map((routine) => _buildRoutineCard(routine)),
-
-            const Divider(),
-
-            // Body Stats Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatCard('Weight', '${currentUser.weight} kg'),
-                _buildStatCard('Height', '${currentUser.height} cm'),
-              ],
-            ),
+            if (recentRoutines.isEmpty)
+              _buildEmptyState(
+                  'No routines completed yet. Try completing a routine!')
+            else
+              ...recentRoutines.map((routine) => _buildRoutineCard(routine)),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -167,122 +132,147 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildExerciseCard(LoggedExercise exercise) {
+  Widget _buildEmptyState(String message) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      color: Colors.white,
+      color: Colors.grey.shade50,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Exercise name
-                Text(
-                  exercise.exerciseName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+        padding: const EdgeInsets.all(24.0),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.fitness_center,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
                 ),
-                Row(
-                  children: [
-                    // Equipment type
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Text(
-                        exercise.equipment,
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Sets
-                    Text(
-                      '${exercise.sets} sets',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                    // Edit icon
-                    IconButton(
-                      icon: Icon(
-                        Icons.edit,
-                        color: Colors.amber.shade700,
-                        size: 18,
-                      ),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // Muscle groups
-            Text(
-              exercise.targetMuscles.join(', '),
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Weight and reps
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        '${exercise.weight.toInt()} kg',
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        '${exercise.reps} reps',
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                    ),
-                  ],
-                ),
-                // Date
-                Text(
-                  '${exercise.date.day}-${_getMonthName(exercise.date.month)}-${exercise.date.year}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildExerciseCard(LoggedExercise exercise) {
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Exercise name
+                    Text(
+                      exercise.exerciseName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        // Equipment type
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Text(
+                            exercise.equipment,
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Sets
+                        Text(
+                          '${exercise.sets} sets',
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Muscle groups
+                Text(
+                  exercise.targetMuscles.join(', '),
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Weight and reps
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            unitsProvider.formatWeight(exercise.weight,
+                                decimals: 0),
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            '${exercise.reps} reps',
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Date
+                    Text(
+                      '${exercise.date.day}-${_getMonthName(exercise.date.month)}-${exercise.date.year}',
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -306,24 +296,18 @@ class HomePage extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.edit,
-                    color: Colors.amber.shade700,
-                    size: 18,
-                  ),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                Text(
+                  '${routine.exercises.length} exercises',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
             // Muscle group icons
             Row(
-              children:
-                  routine.targetMuscles
-                      .map((muscle) => _buildMuscleIcon(muscle))
-                      .toList(),
+              children: routine.targetMuscles
+                  .map((muscle) => _buildMuscleIcon(muscle))
+                  .toList(),
             ),
             Align(
               alignment: Alignment.bottomRight,

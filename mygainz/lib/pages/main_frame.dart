@@ -23,10 +23,6 @@ class MainFrame extends StatefulWidget {
 
 class _MainFrameState extends State<MainFrame> {
   int _selectedIndex = 0;
-  static const TextStyle optionStyle = TextStyle(
-    fontSize: 30,
-    fontWeight: FontWeight.bold,
-  );
   static final List<Widget> _widgetOptions = <Widget>[
     HomePage(),
     const ExercisePage(),

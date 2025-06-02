@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mygainz/widgets/input_field.dart';
 import 'package:mygainz/widgets/unit_measurement_input_field.dart';
 import 'package:mygainz/widgets/percentage_input_field.dart';
-import '../providers/auth_provider.dart';
+import 'package:mygainz/providers/auth_provider.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -67,21 +67,24 @@ class _RegisterPageState extends State<RegisterPage> {
       nameError = nameController.text.isEmpty ? 'Required' : null;
       lastNameError = lastNameController.text.isEmpty ? 'Required' : null;
       birthdayError = birthdayController.text.isEmpty ? 'Required' : null;
-      emailError = emailController.text.isEmpty
-          ? 'Required'
-          : !RegExp(
-              r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
-            ).hasMatch(emailController.text)
+      emailError =
+          emailController.text.isEmpty
+              ? 'Required'
+              : !RegExp(
+                r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
+              ).hasMatch(emailController.text)
               ? 'Invalid email'
               : null;
-      passwordError = passwordController.text.isEmpty
-          ? 'Required'
-          : passwordController.text.length < 6
+      passwordError =
+          passwordController.text.isEmpty
+              ? 'Required'
+              : passwordController.text.length < 6
               ? 'Min 6 characters'
               : null;
-      confirmPasswordError = confirmPasswordController.text.isEmpty
-          ? 'Required'
-          : passwordController.text != confirmPasswordController.text
+      confirmPasswordError =
+          confirmPasswordController.text.isEmpty
+              ? 'Required'
+              : passwordController.text != confirmPasswordController.text
               ? 'Passwords do not match'
               : null;
     });
@@ -181,12 +184,8 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (success) {
-        // Registration successful - Navigate back to AuthWrapper
+        // Registration successful - AuthWrapper will handle navigation
         print('Registration successful, user should be logged in');
-        // Pop the register page to go back to AuthWrapper
-        if (mounted) {
-          Navigator.pop(context);
-        }
       } else {
         // Show error message
         if (mounted) {
@@ -228,8 +227,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     // ─── Credentials Section ──────────────
                     const Text(
                       'Credentials 🔐',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     CustomInputField(
@@ -264,8 +265,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     // ─── Personal Info Section ──────────────
                     const Text(
                       'Personal Information 👤',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -288,82 +291,73 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () async {
-                        FocusScope.of(context).unfocus();
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime(1900),
-                          lastDate: DateTime.now(),
-                        );
-                        if (pickedDate != null) {
-                          birthdayController.text =
-                              "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: CustomInputField(
-                          controller: birthdayController,
-                          hintText: 'Birthday',
-                          errorText: birthdayError,
-                        ),
-                      ),
+                    CustomInputField(
+                      controller: birthdayController,
+                      hintText: 'Birthday (DD/MM/YYYY)',
+                      errorText: birthdayError,
                     ),
 
                     const SizedBox(height: 24),
-
-                    // ─── Fitness Info Section ──────────────
+                    // ─── Body Measurements Section ──────────────
                     const Text(
-                      'Fitness Information 💪',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "We won't use this data for anything but for your own tracking of progress! 😉",
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: MeasurementInputField(
-                            controller: heightController,
-                            onUnitChanged: updateHeightUnit,
-                            selectedUnit: heightUnit,
-                            measurementType: 'height',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: MeasurementInputField(
-                            controller: weightController,
-                            onUnitChanged: updateHWightUnit,
-                            selectedUnit: weightUnit,
-                            measurementType: 'weight',
-                          ),
-                        ),
-                      ],
+                      'Body Measurements 📏',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
-                          child: BodyCompInputField(
-                            controller: fatController,
-                            measurementType: 'fat',
+                          child: UnitMeasurementInputField(
+                            controller: heightController,
+                            hintText: 'Height',
+                            currentUnit: heightUnit,
+                            units: const ['m', 'cm'],
+                            onUnitChanged: updateHeightUnit,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: BodyCompInputField(
-                            controller: muscleController,
-                            measurementType: 'muscle',
+                          child: UnitMeasurementInputField(
+                            controller: weightController,
+                            hintText: 'Weight',
+                            currentUnit: weightUnit,
+                            units: const ['kg', 'lbs'],
+                            onUnitChanged: updateHWightUnit,
                           ),
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 24),
+                    // ─── Body Composition Section ──────────────
+                    const Text(
+                      'Body Composition (Optional) 💪',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PercentageInputField(
+                            controller: fatController,
+                            hintText: 'Fat %',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: PercentageInputField(
+                            controller: muscleController,
+                            hintText: 'Muscle %',
+                          ),
+                        ),
+                      ],
+                    ),
 
                     const SizedBox(height: 40),
                     // ─── Register Button ──────────────
@@ -380,23 +374,24 @@ class _RegisterPageState extends State<RegisterPage> {
                             borderRadius: BorderRadius.circular(32),
                           ),
                         ),
-                        child: authProvider.isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
+                        child:
+                            authProvider.isLoading
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              )
-                            : const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                ),
-                              ),
                       ),
                     ),
                     const SizedBox(height: 40),

@@ -270,13 +270,13 @@ The application uses local storage with SharedPreferences for fast, offline-firs
 
 2. **Install Dependencies:**
    ```bash
-   flutter pub get
+    flutter pub get
    ```
 
 3. **Run the Application:**
-   ```bash
-   flutter run
-   ```
+    ```bash
+    flutter run
+    ```
 
 4. **Build for Production:**
    ```bash

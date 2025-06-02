@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'exercise_page.dart';
+import '../models/exercise.dart';
 
 class ExerciseFormPage extends StatefulWidget {
   final bool isEditing;
@@ -122,23 +122,22 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children:
-                    _allMuscles.map((muscle) {
-                      final isSelected = _selectedMuscles.contains(muscle);
-                      return _buildSelectionChip(
-                        label: muscle,
-                        isSelected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedMuscles.add(muscle);
-                            } else {
-                              _selectedMuscles.remove(muscle);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                children: _allMuscles.map((muscle) {
+                  final isSelected = _selectedMuscles.contains(muscle);
+                  return _buildSelectionChip(
+                    label: muscle,
+                    isSelected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedMuscles.add(muscle);
+                        } else {
+                          _selectedMuscles.remove(muscle);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 24),
 
@@ -151,23 +150,22 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children:
-                    _equipment.map((item) {
-                      final isSelected = _selectedEquipment.contains(item);
-                      return _buildSelectionChip(
-                        label: item,
-                        isSelected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedEquipment.add(item);
-                            } else {
-                              _selectedEquipment.remove(item);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                children: _equipment.map((item) {
+                  final isSelected = _selectedEquipment.contains(item);
+                  return _buildSelectionChip(
+                    label: item,
+                    isSelected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedEquipment.add(item);
+                        } else {
+                          _selectedEquipment.remove(item);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 32),
 

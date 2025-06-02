@@ -2,38 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/units_provider.dart';
 import '../providers/workout_provider.dart';
-
-class Exercise {
-  final String id; // Document ID
-  final String userId;
-  final String exerciseName;
-  final List<String> targetMuscles;
-  final List<String> equipment;
-
-  Exercise({
-    required this.id,
-    required this.userId,
-    required this.exerciseName,
-    required this.targetMuscles,
-    required this.equipment,
-  });
-}
-
-class Routine {
-  final String id; // Document ID
-  final String userId;
-  final String name;
-  final bool orderIsRequired;
-  final List<String> exerciseIds; // References to exercise document IDs
-
-  Routine({
-    required this.id,
-    required this.userId,
-    required this.name,
-    required this.orderIsRequired,
-    required this.exerciseIds,
-  });
-}
+import '../models/exercise.dart';
+import '../models/routine.dart';
+import '../models/workout_set.dart';
+import '../widgets/workout_mode_toggle.dart';
+import '../widgets/routine_selection_card.dart';
+import '../widgets/workout_set_input.dart';
 
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
@@ -528,7 +502,10 @@ class _LogPageState extends State<LogPage> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            _buildModeToggle(),
+            WorkoutModeToggle(
+              isExerciseMode: isExerciseMode,
+              onModeChanged: (mode) => setState(() => isExerciseMode = mode),
+            ),
             const SizedBox(height: 24),
             Expanded(
               child: SingleChildScrollView(
@@ -546,85 +523,6 @@ class _LogPageState extends State<LogPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildModeToggle() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isExerciseMode = true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: isExerciseMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: isExerciseMode
-                      ? Border.all(color: Colors.grey.shade300)
-                      : null,
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.fitness_center,
-                      size: 32,
-                      color: isExerciseMode ? Colors.black : Colors.grey,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Single\nExercise',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isExerciseMode ? Colors.black : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isExerciseMode = false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: !isExerciseMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: !isExerciseMode
-                      ? Border.all(color: Colors.grey.shade300)
-                      : null,
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.checklist,
-                      size: 32,
-                      color: !isExerciseMode ? Colors.black : Colors.grey,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Routine',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: !isExerciseMode ? Colors.black : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -972,7 +870,12 @@ class _LogPageState extends State<LogPage> {
         ...sets.asMap().entries.map((entry) {
           final index = entry.key;
           final set = entry.value;
-          return _buildSetInput(set, index);
+          return WorkoutSetInput(
+            set: set,
+            index: index,
+            canDelete: sets.length > 1,
+            onDelete: () => _removeSet(index),
+          );
         }),
         const SizedBox(height: 12),
         // Add Set button below all sets
@@ -1015,118 +918,6 @@ class _LogPageState extends State<LogPage> {
     );
   }
 
-  Widget _buildSetInput(WorkoutSet set, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Set ${index + 1}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (sets.length > 1)
-                IconButton(
-                  onPressed: () => _removeSet(index),
-                  icon: const Icon(Icons.delete_outline),
-                  color: Colors.red,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Consumer<UnitsProvider>(
-            builder: (context, unitsProvider, child) {
-              return Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Weight (${unitsProvider.weightUnit})',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        TextField(
-                          controller: set.weightController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Reps',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        TextField(
-                          controller: set.repsController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade300),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRoutineSection() {
     if (selectedRoutine == null) {
       return _buildRoutineSelection();
@@ -1144,84 +935,14 @@ class _LogPageState extends State<LogPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
-        ...availableRoutines.map((routine) => _buildRoutineCard(routine)),
+        ...availableRoutines.map((routine) => RoutineSelectionCard(
+              routine: routine,
+              availableExercises: availableExercises,
+              onTap: () => _selectRoutine(routine),
+            )),
         const SizedBox(height: 16),
         _buildCreateNewRoutineCard(),
       ],
-    );
-  }
-
-  Widget _buildRoutineCard(Routine routine) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: () => _selectRoutine(routine),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      routine.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Icon(
-                      routine.orderIsRequired
-                          ? Icons.format_list_numbered
-                          : Icons.shuffle,
-                      color: Colors.grey.shade600,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  routine.orderIsRequired
-                      ? 'Exercises must be performed in order'
-                      : 'Exercises can be performed in any order',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${routine.exerciseIds.length} exercises',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: routine.exerciseIds
-                      .map(
-                        (exerciseId) => _buildMiniExerciseTile(exerciseId),
-                      )
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniExerciseTile(String exerciseId) {
-    final exercise = _getExerciseById(exerciseId);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(exercise.exerciseName, style: const TextStyle(fontSize: 12)),
     );
   }
 
@@ -1886,15 +1607,5 @@ class _LogPageState extends State<LogPage> {
         ],
       ),
     );
-  }
-}
-
-class WorkoutSet {
-  final TextEditingController weightController = TextEditingController();
-  final TextEditingController repsController = TextEditingController();
-
-  void dispose() {
-    weightController.dispose();
-    repsController.dispose();
   }
 }

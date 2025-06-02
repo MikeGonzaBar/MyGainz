@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'exercise_page.dart';
+import '../models/exercise.dart';
+import '../models/routine.dart';
 
 class RoutineFormPage extends StatefulWidget {
   final bool isEditing;
@@ -37,14 +38,13 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
       for (String exerciseId in widget.routine!.exerciseIds) {
         final exercise = widget.availableExercises.firstWhere(
           (ex) => ex.id == exerciseId,
-          orElse:
-              () => Exercise(
-                id: exerciseId,
-                userId: 'user1',
-                exerciseName: 'Unknown Exercise',
-                targetMuscles: ['Unknown'],
-                equipment: ['Unknown'],
-              ),
+          orElse: () => Exercise(
+            id: exerciseId,
+            userId: 'user1',
+            exerciseName: 'Unknown Exercise',
+            targetMuscles: ['Unknown'],
+            equipment: ['Unknown'],
+          ),
         );
         _selectedExercises.add(exercise);
       }
@@ -185,13 +185,12 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children:
-                              _selectedExercises
-                                  .map(
-                                    (exercise) =>
-                                        _buildSelectedExerciseTile(exercise),
-                                  )
-                                  .toList(),
+                          children: _selectedExercises
+                              .map(
+                                (exercise) =>
+                                    _buildSelectedExerciseTile(exercise),
+                              )
+                              .toList(),
                         ),
                       ],
                     ),

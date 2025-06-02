@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../providers/workout_provider.dart';
-import '../providers/units_provider.dart';
+import '../widgets/time_period_filter.dart';
+import '../widgets/progress_metric_toggle.dart';
+import '../widgets/muscle_group_progress_chart.dart';
+import '../widgets/equipment_performance_chart.dart';
+import '../widgets/equipment_improvement_list.dart';
 import 'dart:math' as math;
 
 class ProgressPage extends StatefulWidget {
@@ -210,7 +214,12 @@ class _ProgressPageState extends State<ProgressPage> {
             const SizedBox(height: 20),
 
             // Time period filters
-            _buildTimePeriodFilter(),
+            TimePeriodFilter(
+              timePeriods: timePeriods,
+              selectedTimePeriod: selectedTimePeriod,
+              onTimePeriodChanged: (period) =>
+                  setState(() => selectedTimePeriod = period),
+            ),
             const SizedBox(height: 24),
 
             Expanded(
@@ -235,36 +244,6 @@ class _ProgressPageState extends State<ProgressPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTimePeriodFilter() {
-    return Row(
-      children: timePeriods.map((period) {
-        final isSelected = selectedTimePeriod == period;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: FilterChip(
-            label: Text(period),
-            selected: isSelected,
-            selectedColor: const Color(0xFF1B2027),
-            backgroundColor: Colors.grey.shade200,
-            checkmarkColor: Colors.white,
-            labelStyle: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-            onSelected: (selected) {
-              if (selected) {
-                setState(() => selectedTimePeriod = period);
-              }
-            },
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 
@@ -300,67 +279,9 @@ class _ProgressPageState extends State<ProgressPage> {
         const SizedBox(height: 16),
 
         // Metric toggle
-        Consumer<UnitsProvider>(
-          builder: (context, unitsProvider, child) {
-            return Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showWeightProgress = false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: !showWeightProgress
-                            ? const Color(0xFF1B2027)
-                            : Colors.grey.shade200,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          bottomLeft: Radius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Times Exercised',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: !showWeightProgress
-                              ? Colors.white
-                              : Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showWeightProgress = true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: showWeightProgress
-                            ? const Color(0xFF1B2027)
-                            : Colors.grey.shade200,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Weight Progress (${unitsProvider.weightUnit})',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: showWeightProgress
-                              ? Colors.white
-                              : Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+        ProgressMetricToggle(
+          showWeightProgress: showWeightProgress,
+          onToggle: (value) => setState(() => showWeightProgress = value),
         ),
         const SizedBox(height: 16),
 
@@ -381,14 +302,12 @@ class _ProgressPageState extends State<ProgressPage> {
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 )
-              : (isSpiderView &&
-                      (showWeightProgress
-                                  ? muscleGroupWeights
-                                  : muscleGroupCounts)
-                              .length >=
-                          3)
-                  ? _buildSpiderChart(muscleGroupCounts, muscleGroupWeights)
-                  : _buildBarChart(muscleGroupCounts, muscleGroupWeights),
+              : MuscleGroupProgressChart(
+                  muscleGroupCounts: muscleGroupCounts,
+                  muscleGroupWeights: muscleGroupWeights,
+                  showWeightProgress: showWeightProgress,
+                  isSpiderView: isSpiderView,
+                ),
         ),
 
         // Add helpful message when spider view is selected but insufficient data
@@ -424,219 +343,6 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildSpiderChart(Map<String, double> muscleGroupCounts,
-      Map<String, double> muscleGroupWeights) {
-    final data = showWeightProgress ? muscleGroupWeights : muscleGroupCounts;
-
-    if (data.isEmpty) {
-      return const Center(
-        child: Text(
-          'No data available',
-          style: TextStyle(color: Colors.white70, fontSize: 16),
-        ),
-      );
-    }
-
-    // Radar chart requires at least 3 data points
-    if (data.length < 3) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.info_outline,
-            color: Colors.white70,
-            size: 48,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Spider View requires at least 3 muscle groups',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Log more diverse exercises to unlock this view!',
-            style: TextStyle(color: Colors.white54, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Current: ${data.length} muscle groups',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ],
-      );
-    }
-
-    final maxValue = data.values.reduce(math.max);
-    if (maxValue == 0) {
-      return const Center(
-        child: Text(
-          'No data available',
-          style: TextStyle(color: Colors.white70, fontSize: 16),
-        ),
-      );
-    }
-
-    return Consumer<UnitsProvider>(
-      builder: (context, unitsProvider, child) {
-        // Convert weights if needed
-        final displayData = <String, double>{};
-        data.forEach((muscle, value) {
-          if (showWeightProgress) {
-            displayData[muscle] = unitsProvider.convertWeight(value);
-          } else {
-            displayData[muscle] = value;
-          }
-        });
-
-        final displayMaxValue = displayData.values.reduce(math.max);
-
-        return RadarChart(
-          RadarChartData(
-            dataSets: [
-              RadarDataSet(
-                fillColor: Colors.orange.withValues(alpha: 0.3),
-                borderColor: Colors.orange,
-                borderWidth: 2,
-                dataEntries: displayData.entries.map((entry) {
-                  return RadarEntry(value: entry.value / displayMaxValue * 100);
-                }).toList(),
-              ),
-            ],
-            radarShape: RadarShape.polygon,
-            tickCount: 5,
-            titleTextStyle: const TextStyle(color: Colors.white, fontSize: 12),
-            getTitle: (index, angle) {
-              final titles = displayData.keys.toList();
-              return RadarChartTitle(text: titles[index], angle: angle);
-            },
-            gridBorderData: const BorderSide(color: Colors.white24, width: 1),
-            tickBorderData: const BorderSide(color: Colors.white24, width: 1),
-            radarBorderData: const BorderSide(color: Colors.white24, width: 1),
-            ticksTextStyle:
-                const TextStyle(color: Colors.white70, fontSize: 10),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBarChart(Map<String, double> muscleGroupCounts,
-      Map<String, double> muscleGroupWeights) {
-    final data = showWeightProgress ? muscleGroupWeights : muscleGroupCounts;
-
-    if (data.isEmpty) {
-      return const Center(
-        child: Text(
-          'No data available',
-          style: TextStyle(color: Colors.white70, fontSize: 16),
-        ),
-      );
-    }
-
-    return Consumer<UnitsProvider>(
-      builder: (context, unitsProvider, child) {
-        // Convert weights if needed
-        final displayData = <String, double>{};
-        data.forEach((muscle, value) {
-          if (showWeightProgress) {
-            displayData[muscle] = unitsProvider.convertWeight(value);
-          } else {
-            displayData[muscle] = value;
-          }
-        });
-
-        if (displayData.isEmpty) {
-          return const Center(
-            child: Text(
-              'No data available',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-          );
-        }
-
-        final maxValue = displayData.values.reduce(math.max);
-
-        return BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: maxValue * 1.2,
-            barTouchData: BarTouchData(enabled: false),
-            titlesData: FlTitlesData(
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (value, meta) {
-                    final titles = displayData.keys.toList();
-                    if (value.toInt() < titles.length) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          titles[value.toInt()],
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 10),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }
-                    return const Text('');
-                  },
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 10),
-                    );
-                  },
-                ),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-            ),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: maxValue / 5,
-              getDrawingHorizontalLine: (value) {
-                return const FlLine(color: Colors.white24, strokeWidth: 1);
-              },
-            ),
-            borderData: FlBorderData(show: false),
-            barGroups: displayData.entries.map((entry) {
-              final index = displayData.keys.toList().indexOf(entry.key);
-              return BarChartGroupData(
-                x: index,
-                barRods: [
-                  BarChartRodData(
-                    toY: entry.value,
-                    color: Colors.orange,
-                    width: 16,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(4),
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        );
-      },
     );
   }
 
@@ -733,218 +439,21 @@ class _ProgressPageState extends State<ProgressPage> {
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 )
-              : _buildEquipmentLineChart(filteredExercises),
+              : EquipmentPerformanceChart(
+                  equipmentData:
+                      _calculateEquipmentPerformance(filteredExercises),
+                  selectedEquipment: selectedEquipment,
+                ),
         ),
         const SizedBox(height: 16),
 
         // Equipment list with improvements for selected muscle group
-        _buildEquipmentListForMuscleGroup(filteredExercises),
-      ],
-    );
-  }
-
-  Widget _buildEquipmentLineChart(List<LoggedExercise> exercises) {
-    final equipmentData = _calculateEquipmentPerformance(exercises);
-
-    if (equipmentData.isEmpty) {
-      return const Center(
-        child: Text(
-          'No performance data available',
-          style: TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-      );
-    }
-
-    return Consumer<UnitsProvider>(
-      builder: (context, unitsProvider, child) {
-        return LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: 10,
-              getDrawingHorizontalLine: (value) {
-                return const FlLine(color: Colors.white24, strokeWidth: 1);
-              },
-            ),
-            titlesData: FlTitlesData(
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (value, meta) {
-                    final displayValue = unitsProvider.convertWeight(value);
-                    return Text(
-                      '${displayValue.toInt()}${unitsProvider.weightUnit}',
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 10),
-                    );
-                  },
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 30,
-                  getTitlesWidget: (value, meta) {
-                    // Show month indicators
-                    return Text(
-                      'M${value.toInt() + 1}',
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 10),
-                    );
-                  },
-                ),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            lineBarsData: _getEquipmentLineData(equipmentData, unitsProvider),
-          ),
-        );
-      },
-    );
-  }
-
-  List<LineChartBarData> _getEquipmentLineData(
-      Map<String, List<FlSpot>> equipmentData, UnitsProvider unitsProvider) {
-    if (selectedEquipment == 'All Equipment') {
-      // Show all equipment lines
-      return equipmentData.entries.map((entry) {
-        Color lineColor;
-        switch (entry.key) {
-          case 'Dumbbell':
-            lineColor = Colors.blue;
-            break;
-          case 'Barbell':
-            lineColor = Colors.green;
-            break;
-          case 'Machine':
-            lineColor = Colors.purple;
-            break;
-          case 'Kettlebell':
-            lineColor = Colors.orange;
-            break;
-          default:
-            lineColor = Colors.white;
-        }
-
-        // Convert weights to display units
-        final convertedSpots = entry.value.map((spot) {
-          return FlSpot(spot.x, unitsProvider.convertWeight(spot.y));
-        }).toList();
-
-        return LineChartBarData(
-          spots: convertedSpots,
-          isCurved: true,
-          color: lineColor,
-          barWidth: 3,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(show: false),
-        );
-      }).toList();
-    } else {
-      // Show selected equipment only
-      final data = equipmentData[selectedEquipment] ?? [];
-      if (data.isEmpty) return [];
-
-      // Convert weights to display units
-      final convertedSpots = data.map((spot) {
-        return FlSpot(spot.x, unitsProvider.convertWeight(spot.y));
-      }).toList();
-
-      return [
-        LineChartBarData(
-          spots: convertedSpots,
-          isCurved: true,
-          color: Colors.orange,
-          barWidth: 3,
-          dotData: const FlDotData(show: true),
-          belowBarData: BarAreaData(
-            show: true,
-            color: Colors.orange.withValues(alpha: 0.2),
-          ),
-        ),
-      ];
-    }
-  }
-
-  Widget _buildEquipmentListForMuscleGroup(List<LoggedExercise> exercises) {
-    final equipmentImprovement = _calculateEquipmentImprovement(exercises);
-
-    if (equipmentImprovement.isEmpty) {
-      return const Text(
-        'No equipment data available for the selected filters.',
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (selectedMuscleGroup != 'All Muscles') ...[
-          Text(
-            'Performance for $selectedMuscleGroup',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 12),
-        ],
-        ...equipmentImprovement.entries.map(
-          (entry) => _buildEquipmentItem(entry.key, entry.value),
+        EquipmentImprovementList(
+          equipmentImprovement:
+              _calculateEquipmentImprovement(filteredExercises),
+          selectedMuscleGroup: selectedMuscleGroup,
         ),
       ],
-    );
-  }
-
-  Widget _buildEquipmentItem(String equipment, double improvement) {
-    Color dotColor;
-    switch (equipment) {
-      case 'Dumbbell':
-        dotColor = Colors.blue;
-        break;
-      case 'Barbell':
-        dotColor = Colors.green;
-        break;
-      case 'Machine':
-        dotColor = Colors.purple;
-        break;
-      case 'Kettlebell':
-        dotColor = Colors.orange;
-        break;
-      default:
-        dotColor = Colors.grey;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              equipment,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          Text(
-            '${improvement >= 0 ? '+' : ''}${improvement.toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: improvement >= 0 ? Colors.green : Colors.red,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

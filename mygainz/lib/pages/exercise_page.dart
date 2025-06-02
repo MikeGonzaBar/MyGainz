@@ -1,38 +1,11 @@
 import 'package:flutter/material.dart';
+import '../models/exercise.dart';
+import '../models/routine.dart';
+import '../widgets/category_filter.dart';
+import '../widgets/exercise_library_card.dart';
+import '../widgets/routine_library_card.dart';
 import 'exercise_form_page.dart';
 import 'routine_form_page.dart';
-
-class Exercise {
-  final String id; // Document ID
-  final String userId;
-  final String exerciseName;
-  final List<String> targetMuscles;
-  final List<String> equipment;
-
-  Exercise({
-    required this.id,
-    required this.userId,
-    required this.exerciseName,
-    required this.targetMuscles,
-    required this.equipment,
-  });
-}
-
-class Routine {
-  final String id; // Document ID
-  final String userId;
-  final String name;
-  final bool orderIsRequired;
-  final List<String> exerciseIds; // References to exercise document IDs
-
-  Routine({
-    required this.id,
-    required this.userId,
-    required this.name,
-    required this.orderIsRequired,
-    required this.exerciseIds,
-  });
-}
 
 class ExercisePage extends StatefulWidget {
   const ExercisePage({super.key});
@@ -152,14 +125,13 @@ class _ExercisePageState extends State<ExercisePage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => ExerciseFormPage(
-              isEditing: false,
-              onSave: (newExercise) {
-                // Handle saving the new exercise
-                Navigator.pop(context);
-              },
-            ),
+        builder: (context) => ExerciseFormPage(
+          isEditing: false,
+          onSave: (newExercise) {
+            // Handle saving the new exercise
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -168,15 +140,14 @@ class _ExercisePageState extends State<ExercisePage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => ExerciseFormPage(
-              isEditing: true,
-              exercise: exercise,
-              onSave: (updatedExercise) {
-                // Handle updating the exercise
-                Navigator.pop(context);
-              },
-            ),
+        builder: (context) => ExerciseFormPage(
+          isEditing: true,
+          exercise: exercise,
+          onSave: (updatedExercise) {
+            // Handle updating the exercise
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -185,15 +156,14 @@ class _ExercisePageState extends State<ExercisePage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => RoutineFormPage(
-              isEditing: false,
-              availableExercises: _exercises,
-              onSave: (routineData) {
-                // Handle saving the new routine
-                Navigator.pop(context);
-              },
-            ),
+        builder: (context) => RoutineFormPage(
+          isEditing: false,
+          availableExercises: _exercises,
+          onSave: (routineData) {
+            // Handle saving the new routine
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -202,16 +172,15 @@ class _ExercisePageState extends State<ExercisePage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => RoutineFormPage(
-              isEditing: true,
-              routine: routine,
-              availableExercises: _exercises,
-              onSave: (routineData) {
-                // Handle updating the routine
-                Navigator.pop(context);
-              },
-            ),
+        builder: (context) => RoutineFormPage(
+          isEditing: true,
+          routine: routine,
+          availableExercises: _exercises,
+          onSave: (routineData) {
+            // Handle updating the routine
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -243,15 +212,40 @@ class _ExercisePageState extends State<ExercisePage>
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
                           children: [
-                            _buildCategoryFilter('All'),
+                            CategoryFilter(
+                              category: 'All',
+                              isSelected: _selectedCategory == 'All',
+                              onTap: () =>
+                                  setState(() => _selectedCategory = 'All'),
+                            ),
                             const SizedBox(width: 8),
-                            _buildCategoryFilter('Chest'),
+                            CategoryFilter(
+                              category: 'Chest',
+                              isSelected: _selectedCategory == 'Chest',
+                              onTap: () =>
+                                  setState(() => _selectedCategory = 'Chest'),
+                            ),
                             const SizedBox(width: 8),
-                            _buildCategoryFilter('Back'),
+                            CategoryFilter(
+                              category: 'Back',
+                              isSelected: _selectedCategory == 'Back',
+                              onTap: () =>
+                                  setState(() => _selectedCategory = 'Back'),
+                            ),
                             const SizedBox(width: 8),
-                            _buildCategoryFilter('Lower Body'),
+                            CategoryFilter(
+                              category: 'Lower Body',
+                              isSelected: _selectedCategory == 'Lower Body',
+                              onTap: () => setState(
+                                  () => _selectedCategory = 'Lower Body'),
+                            ),
                             const SizedBox(width: 8),
-                            _buildCategoryFilter('Core'),
+                            CategoryFilter(
+                              category: 'Core',
+                              isSelected: _selectedCategory == 'Core',
+                              onTap: () =>
+                                  setState(() => _selectedCategory = 'Core'),
+                            ),
                           ],
                         ),
                       ),
@@ -262,7 +256,11 @@ class _ExercisePageState extends State<ExercisePage>
                           itemCount: filteredExercises.length,
                           itemBuilder: (context, index) {
                             final exercise = filteredExercises[index];
-                            return _buildExerciseCard(exercise);
+                            return ExerciseLibraryCard(
+                              exercise: exercise,
+                              onEdit: () =>
+                                  _navigateToEditExercise(context, exercise),
+                            );
                           },
                         ),
                       ),
@@ -275,7 +273,12 @@ class _ExercisePageState extends State<ExercisePage>
                       itemCount: _routines.length,
                       itemBuilder: (context, index) {
                         final routine = _routines[index];
-                        return _buildRoutineCard(routine);
+                        return RoutineLibraryCard(
+                          routine: routine,
+                          availableExercises: _exercises,
+                          onEdit: () =>
+                              _navigateToEditRoutine(context, routine),
+                        );
                       },
                     ),
                   ),
@@ -302,152 +305,6 @@ class _ExercisePageState extends State<ExercisePage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCategoryFilter(String category) {
-    final isSelected = _selectedCategory == category;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedCategory = category;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(),
-        ),
-        child: Text(
-          category,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExerciseCard(Exercise exercise) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  exercise.exerciseName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _navigateToEditExercise(context, exercise),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            Text(exercise.targetMuscles.join(', ')),
-            const SizedBox(height: 8),
-            Row(
-              children:
-                  exercise.equipment.map((item) {
-                    return Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(item, style: const TextStyle(fontSize: 12)),
-                    );
-                  }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoutineCard(Routine routine) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  routine.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _navigateToEditRoutine(context, routine),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children:
-                  routine.exerciseIds
-                      .map((id) => _buildExerciseTile(id))
-                      .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExerciseTile(String id) {
-    final exercise = _exercises.firstWhere((e) => e.id == id);
-    return Container(
-      width: 50,
-      height: 30,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              exercise.exerciseName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

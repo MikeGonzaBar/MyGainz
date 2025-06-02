@@ -236,4 +236,77 @@ class WorkoutProvider with ChangeNotifier {
     await _saveWorkouts();
     notifyListeners();
   }
+
+  // Update a logged exercise
+  Future<void> updateLoggedExercise(
+    String exerciseId, {
+    double? weight,
+    int? reps,
+    String? equipment,
+    int? sets,
+  }) async {
+    final index = _loggedExercises.indexWhere((ex) => ex.id == exerciseId);
+    if (index != -1) {
+      final exercise = _loggedExercises[index];
+      _loggedExercises[index] = LoggedExercise(
+        id: exercise.id,
+        exerciseId: exercise.exerciseId,
+        exerciseName: exercise.exerciseName,
+        targetMuscles: exercise.targetMuscles,
+        weight: weight ?? exercise.weight,
+        reps: reps ?? exercise.reps,
+        equipment: equipment ?? exercise.equipment,
+        sets: sets ?? exercise.sets,
+        date: exercise.date,
+      );
+      await _saveWorkouts();
+      notifyListeners();
+    }
+  }
+
+  // Update a logged routine exercise
+  Future<void> updateLoggedRoutineExercise(
+    String routineId,
+    String exerciseId, {
+    double? weight,
+    int? reps,
+    String? equipment,
+    int? sets,
+  }) async {
+    final routineIndex = _loggedRoutines.indexWhere((r) => r.id == routineId);
+    if (routineIndex != -1) {
+      final routine = _loggedRoutines[routineIndex];
+      final exerciseIndex =
+          routine.exercises.indexWhere((ex) => ex.id == exerciseId);
+      if (exerciseIndex != -1) {
+        final exercise = routine.exercises[exerciseIndex];
+        final updatedExercise = LoggedExercise(
+          id: exercise.id,
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          targetMuscles: exercise.targetMuscles,
+          weight: weight ?? exercise.weight,
+          reps: reps ?? exercise.reps,
+          equipment: equipment ?? exercise.equipment,
+          sets: sets ?? exercise.sets,
+          date: exercise.date,
+        );
+
+        final updatedExercises = List<LoggedExercise>.from(routine.exercises);
+        updatedExercises[exerciseIndex] = updatedExercise;
+
+        _loggedRoutines[routineIndex] = LoggedRoutine(
+          id: routine.id,
+          routineId: routine.routineId,
+          name: routine.name,
+          targetMuscles: routine.targetMuscles,
+          date: routine.date,
+          exercises: updatedExercises,
+        );
+
+        await _saveWorkouts();
+        notifyListeners();
+      }
+    }
+  }
 }

@@ -2,14 +2,14 @@
 
 ## 📱 Available Downloads
 
-### MyGainz v1.0.0+1
+### MyGainz v1.1.0+1
 
 **🚀 Release APK (Recommended)**  
-File: `MyGainz-v1.0.0-release.apk` (23MB)  
+File: `MyGainz-v1.1.0-release.apk` (23MB)  
 Optimized for performance and battery life
 
 **🔧 Debug APK**  
-File: `MyGainz-v1.0.0-debug.apk` (91MB)  
+File: `MyGainz-v1.1.0-debug.apk` (91MB)  
 Includes debugging symbols and development tools
 
 ## 📥 Installation Instructions
@@ -30,9 +30,13 @@ These are unsigned development builds. Security warnings are normal for apps ins
 - 🏋️ Custom routine creation and management
 - ⚖️ Metric and Imperial unit support
 - 📂 Personal data export functionality
+- 📱 **NEW:** Complete exercise and routine history viewing
+- ✏️ **NEW:** Edit logged exercises and routines
+- 🔄 **NEW:** Real-time data updates with persistent storage
 
 ## 🆕 Version History
 
+- **v1.1.0+1** - Added exercise/routine history pages and edit functionality
 - **v1.0.0+1** - Initial release with core workout tracking features
 
 ## 🐛 Support

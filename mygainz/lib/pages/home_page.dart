@@ -6,6 +6,8 @@ import '../providers/workout_provider.dart';
 import '../widgets/exercise_card.dart';
 import '../widgets/routine_card.dart';
 import '../widgets/stat_card.dart';
+import 'exercise_history_page.dart';
+import 'routine_history_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -99,9 +101,21 @@ class HomePage extends StatelessWidget {
             if (recentExercises.isEmpty)
               _buildEmptyState(
                   'No exercises logged yet. Start by logging your first workout!')
-            else
+            else ...[
               ...recentExercises
                   .map((exercise) => ExerciseCard(exercise: exercise)),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _navigateToExerciseHistory(context),
+                  icon: const Icon(Icons.history),
+                  label: const Text('View All Exercise History'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF1B2027),
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
 
@@ -110,8 +124,20 @@ class HomePage extends StatelessWidget {
             if (recentRoutines.isEmpty)
               _buildEmptyState(
                   'No routines completed yet. Try completing a routine!')
-            else
+            else ...[
               ...recentRoutines.map((routine) => RoutineCard(routine: routine)),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _navigateToRoutineHistory(context),
+                  icon: const Icon(Icons.history),
+                  label: const Text('View All Routine History'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF1B2027),
+                  ),
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -164,6 +190,20 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _navigateToExerciseHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ExerciseHistoryPage()),
+    );
+  }
+
+  void _navigateToRoutineHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => RoutineHistoryPage()),
     );
   }
 }

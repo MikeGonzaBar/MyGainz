@@ -6,10 +6,12 @@ import '../utils/date_helpers.dart';
 
 class ExerciseCard extends StatelessWidget {
   final LoggedExercise exercise;
+  final bool showEditButton;
 
   const ExerciseCard({
     super.key,
     required this.exercise,
+    this.showEditButton = false,
   });
 
   @override
@@ -62,6 +64,17 @@ class ExerciseCard extends StatelessWidget {
                           '${exercise.sets} sets',
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
+                        if (showEditButton) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => _showEditDialog(context),
+                            icon: const Icon(Icons.edit),
+                            iconSize: 20,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            color: const Color(0xFF1B2027),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -122,6 +135,147 @@ class ExerciseCard extends StatelessWidget {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showEditDialog(BuildContext context) {
+    final weightController =
+        TextEditingController(text: exercise.weight.toString());
+    final repsController =
+        TextEditingController(text: exercise.reps.toString());
+    final setsController =
+        TextEditingController(text: exercise.sets.toString());
+    String selectedEquipment = exercise.equipment;
+
+    final equipmentOptions = [
+      'Barbell',
+      'Dumbbell',
+      'Kettlebell',
+      'Machine',
+      'Bodyweight',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Edit ${exercise.exerciseName}'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: weightController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Weight',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextField(
+                            controller: repsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Reps',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: setsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Sets',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedEquipment,
+                      decoration: const InputDecoration(
+                        labelText: 'Equipment',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: equipmentOptions.map((equipment) {
+                        return DropdownMenuItem(
+                          value: equipment,
+                          child: Text(equipment),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedEquipment = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final weight = double.tryParse(weightController.text);
+                    final reps = int.tryParse(repsController.text);
+                    final sets = int.tryParse(setsController.text);
+
+                    if (weight != null && reps != null && sets != null) {
+                      final workoutProvider =
+                          Provider.of<WorkoutProvider>(context, listen: false);
+                      await workoutProvider.updateLoggedExercise(
+                        exercise.id,
+                        weight: weight,
+                        reps: reps,
+                        equipment: selectedEquipment,
+                        sets: sets,
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                '${exercise.exerciseName} updated successfully!'),
+                          ),
+                        );
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Please enter valid numbers for all fields'),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B2027),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

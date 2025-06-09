@@ -1,0 +1,132 @@
+name: Build and Release APKs
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.29.3'
+        channel: 'stable'
+        cache: true
+        
+    - name: Get Dependencies
+      working-directory: ./mygainz
+      run: flutter pub get
+      
+    - name: Run Tests
+      working-directory: ./mygainz
+      run: flutter test
+      
+    - name: Extract Version from pubspec.yaml
+      id: version
+      working-directory: ./mygainz
+      run: |
+        VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
+        BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        echo "FULL_VERSION=$VERSION+$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        
+    - name: Build Release APK
+      working-directory: ./mygainz
+      run: flutter build apk --release
+      
+    - name: Build Debug APK
+      working-directory: ./mygainz
+      run: flutter build apk --debug
+      
+    - name: Rename APK Files
+      working-directory: ./mygainz
+      run: |
+        cp build/app/outputs/flutter-apk/app-release.apk MyGainz-v${{ steps.version.outputs.VERSION }}-release.apk
+        cp build/app/outputs/flutter-apk/app-debug.apk MyGainz-v${{ steps.version.outputs.VERSION }}-debug.apk
+        
+    - name: Build iOS Simulator (if on macOS runner)
+      working-directory: ./mygainz
+      run: |
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          flutter build ios --no-codesign
+          cd build/ios/iphoneos
+          zip -r ../../../MyGainz-v${{ steps.version.outputs.VERSION }}-ios-simulator.zip Runner.app
+        else
+          echo "Skipping iOS build on Linux runner"
+        fi
+      shell: bash
+      
+    - name: Generate Release Notes
+      id: release_notes
+      working-directory: ./mygainz
+      run: |
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "## MyGainz v${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### 📱 Downloads" >> $GITHUB_OUTPUT
+        echo "- **Release APK**: MyGainz-v${{ steps.version.outputs.VERSION }}-release.apk" >> $GITHUB_OUTPUT
+        echo "- **Debug APK**: MyGainz-v${{ steps.version.outputs.VERSION }}-debug.apk" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### 📋 Changes" >> $GITHUB_OUTPUT
+        # Extract latest version changes from CHANGELOG.md
+        sed -n "/## \[${{ steps.version.outputs.VERSION }}\]/,/## \[/p" CHANGELOG.md | head -n -1 | tail -n +2 >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+        release_name: MyGainz v${{ steps.version.outputs.VERSION }}
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release APK
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mygainz/MyGainz-v${{ steps.version.outputs.VERSION }}-release.apk
+        asset_name: MyGainz-v${{ steps.version.outputs.VERSION }}-release.apk
+        asset_content_type: application/vnd.android.package-archive
+        
+    - name: Upload Debug APK
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mygainz/MyGainz-v${{ steps.version.outputs.VERSION }}-debug.apk
+        asset_name: MyGainz-v${{ steps.version.outputs.VERSION }}-debug.apk
+        asset_content_type: application/vnd.android.package-archive
+        
+    - name: Upload iOS Simulator (if exists)
+      uses: actions/upload-release-asset@v1
+      if: runner.os == 'macOS'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mygainz/MyGainz-v${{ steps.version.outputs.VERSION }}-ios-simulator.zip
+        asset_name: MyGainz-v${{ steps.version.outputs.VERSION }}-ios-simulator.zip
+        asset_content_type: application/zip 

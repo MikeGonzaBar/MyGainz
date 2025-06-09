@@ -1,0 +1,25 @@
+name: Test Workflow
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Simple Test
+      run: |
+        echo "✅ GitHub Actions is working!"
+        echo "✅ Repository: ${{ github.repository }}"
+        echo "✅ Branch: ${{ github.ref }}"
+        echo "✅ Event: ${{ github.event_name }}"
+        
+    - name: List Files
+      run: |
+        echo "📁 Repository contents:"
+        ls -la 

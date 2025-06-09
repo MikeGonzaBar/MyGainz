@@ -354,3 +354,4 @@ This project is open source. See the repository for license details.
 ---
 
 **Ready to start your fitness journey? Download MyGainz and take control of your workouts today!** 💪
+# Trigger workflow

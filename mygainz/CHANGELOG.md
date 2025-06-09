@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2024-12-21
+
+### Fixed
+- **About Section Version** - Fixed hardcoded version display to automatically read from pubspec.yaml
+- **Dynamic Version Updates** - App version now updates automatically with each release without manual code changes
+
+### Technical
+- Added `package_info_plus` dependency for runtime version detection
+- Enhanced About dialog to fetch version information dynamically
+
 ## [1.1.1] - 2024-12-21
 
 ### Fixed

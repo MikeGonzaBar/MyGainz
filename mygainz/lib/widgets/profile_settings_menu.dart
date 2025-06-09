@@ -42,7 +42,6 @@ class ProfileSettingsMenu extends StatelessWidget {
     // Fetch the app version from package info
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String version = packageInfo.version;
-    String buildNumber = packageInfo.buildNumber;
 
     if (context.mounted) {
       showDialog(

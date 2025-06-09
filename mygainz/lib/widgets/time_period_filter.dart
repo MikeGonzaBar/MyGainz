@@ -14,32 +14,35 @@ class TimePeriodFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: timePeriods.map((period) {
-        final isSelected = selectedTimePeriod == period;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: FilterChip(
-            label: Text(period),
-            selected: isSelected,
-            selectedColor: const Color(0xFF1B2027),
-            backgroundColor: Colors.grey.shade200,
-            checkmarkColor: Colors.white,
-            labelStyle: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: timePeriods.map((period) {
+          final isSelected = selectedTimePeriod == period;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(period),
+              selected: isSelected,
+              selectedColor: const Color(0xFF1B2027),
+              backgroundColor: Colors.grey.shade200,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              onSelected: (selected) {
+                if (selected) {
+                  onTimePeriodChanged(period);
+                }
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            onSelected: (selected) {
-              if (selected) {
-                onTimePeriodChanged(period);
-              }
-            },
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }

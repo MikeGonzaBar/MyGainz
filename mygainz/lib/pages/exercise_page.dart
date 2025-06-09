@@ -279,43 +279,46 @@ class _ExercisePageState extends State<ExercisePage>
                       // Category filter
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            CategoryFilter(
-                              category: 'All',
-                              isSelected: _selectedCategory == 'All',
-                              onTap: () =>
-                                  setState(() => _selectedCategory = 'All'),
-                            ),
-                            const SizedBox(width: 8),
-                            CategoryFilter(
-                              category: 'Chest',
-                              isSelected: _selectedCategory == 'Chest',
-                              onTap: () =>
-                                  setState(() => _selectedCategory = 'Chest'),
-                            ),
-                            const SizedBox(width: 8),
-                            CategoryFilter(
-                              category: 'Back',
-                              isSelected: _selectedCategory == 'Back',
-                              onTap: () =>
-                                  setState(() => _selectedCategory = 'Back'),
-                            ),
-                            const SizedBox(width: 8),
-                            CategoryFilter(
-                              category: 'Lower Body',
-                              isSelected: _selectedCategory == 'Lower Body',
-                              onTap: () => setState(
-                                  () => _selectedCategory = 'Lower Body'),
-                            ),
-                            const SizedBox(width: 8),
-                            CategoryFilter(
-                              category: 'Core',
-                              isSelected: _selectedCategory == 'Core',
-                              onTap: () =>
-                                  setState(() => _selectedCategory = 'Core'),
-                            ),
-                          ],
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              CategoryFilter(
+                                category: 'All',
+                                isSelected: _selectedCategory == 'All',
+                                onTap: () =>
+                                    setState(() => _selectedCategory = 'All'),
+                              ),
+                              const SizedBox(width: 8),
+                              CategoryFilter(
+                                category: 'Chest',
+                                isSelected: _selectedCategory == 'Chest',
+                                onTap: () =>
+                                    setState(() => _selectedCategory = 'Chest'),
+                              ),
+                              const SizedBox(width: 8),
+                              CategoryFilter(
+                                category: 'Back',
+                                isSelected: _selectedCategory == 'Back',
+                                onTap: () =>
+                                    setState(() => _selectedCategory = 'Back'),
+                              ),
+                              const SizedBox(width: 8),
+                              CategoryFilter(
+                                category: 'Lower Body',
+                                isSelected: _selectedCategory == 'Lower Body',
+                                onTap: () => setState(
+                                    () => _selectedCategory = 'Lower Body'),
+                              ),
+                              const SizedBox(width: 8),
+                              CategoryFilter(
+                                category: 'Core',
+                                isSelected: _selectedCategory == 'Core',
+                                onTap: () =>
+                                    setState(() => _selectedCategory = 'Core'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       // Exercise list

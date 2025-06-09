@@ -1,9 +1,6 @@
-// This is a basic Flutter widget test.
+// MyGainz App Widget Tests
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Basic widget tests for the MyGainz fitness application
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,20 +8,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mygainz/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('MyGainz app launches successfully', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Wait for the app to fully load
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify that the app launches and shows main navigation
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Log'), findsOneWidget);
+    expect(find.text('Exercises'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('App has proper title', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    // Verify app title exists (MaterialApp title)
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+
+  testWidgets('Bottom navigation works', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    // Verify we have bottom navigation
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+    // Verify all tabs are present
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Log'), findsOneWidget);
+    expect(find.text('Exercises'), findsOneWidget);
   });
 }

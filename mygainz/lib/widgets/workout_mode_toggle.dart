@@ -56,7 +56,7 @@ class WorkoutModeToggle extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onModeChanged(false),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 26),
                 decoration: BoxDecoration(
                   color: !isExerciseMode ? Colors.white : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),

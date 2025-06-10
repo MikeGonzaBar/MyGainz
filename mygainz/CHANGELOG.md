@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2024-12-21
+
+### Fixed
+- **Exercise Page UI Overflow** - Fixed RenderFlex overflow (1.5px) in category filter by making it horizontally scrollable
+- **Progress Tracker UI Overflow** - Fixed RenderFlex overflow (4.9px) in time period filter by making it horizontally scrollable
+- **Layout Stability** - Eliminated yellow and black striped overflow warnings on Samsung Galaxy S23 Ultra and other devices
+
+### Enhanced
+- **Responsive Design** - Category and time period filters now scroll horizontally when content exceeds screen width
+- **User Experience** - Improved filter navigation with smooth horizontal scrolling
+- **Cross-Device Compatibility** - Better layout handling across different screen sizes
+
+### Technical
+- Updated `android/app/build.gradle.kts` with explicit NDK version specification
+- Enhanced `time_period_filter.dart` with SingleChildScrollView wrapper
+- Enhanced exercise page category filters with horizontal scrolling capability
+
 ## [1.1.2] - 2024-12-21
 
 ### Fixed

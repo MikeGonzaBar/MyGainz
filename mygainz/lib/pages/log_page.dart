@@ -7,7 +7,6 @@ import '../models/routine.dart';
 import '../models/workout_set.dart';
 import '../widgets/workout_mode_toggle.dart';
 import '../widgets/routine_selection_card.dart';
-import '../widgets/workout_set_input.dart';
 
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
@@ -21,6 +20,11 @@ class _LogPageState extends State<LogPage> {
   final TextEditingController _searchController = TextEditingController();
   String selectedEquipment = 'Barbell';
   List<WorkoutSet> sets = [WorkoutSet()];
+
+  // Cardio exercise state
+  final TextEditingController _distanceController = TextEditingController();
+  final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _caloriesController = TextEditingController();
 
   // Exercise search state
   List<Exercise> filteredExercises = [];
@@ -43,6 +47,7 @@ class _LogPageState extends State<LogPage> {
 
   // Available exercises to resolve exercise IDs
   final List<Exercise> availableExercises = [
+    // Strength exercises
     Exercise(
       id: '1',
       userId: 'user1',
@@ -113,6 +118,98 @@ class _LogPageState extends State<LogPage> {
       targetMuscles: ['Shoulders', 'Triceps'],
       equipment: ['Barbell', 'Dumbbell'],
     ),
+
+    // Cardio exercises
+    Exercise(
+      id: 'cardio_1',
+      userId: 'user1',
+      exerciseName: 'Running',
+      targetMuscles: ['Cardiovascular', 'Legs', 'Core'],
+      equipment: ['Treadmill', 'Outdoor', 'Track'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: 'cardio_2',
+      userId: 'user1',
+      exerciseName: 'Swimming',
+      targetMuscles: ['Cardiovascular', 'Back', 'Shoulders', 'Arms', 'Core'],
+      equipment: ['Pool', 'Open Water'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: 'cardio_3',
+      userId: 'user1',
+      exerciseName: 'Cycling',
+      targetMuscles: ['Cardiovascular', 'Quads', 'Hamstrings', 'Calves'],
+      equipment: ['Stationary Bike', 'Road Bike', 'Mountain Bike', 'Spin Bike'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: 'cardio_4',
+      userId: 'user1',
+      exerciseName: 'Stair Master',
+      targetMuscles: ['Cardiovascular', 'Quads', 'Glutes', 'Calves'],
+      equipment: ['Stair Master', 'Stepper'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: false,
+        hasDuration: true,
+        hasPace: false,
+        hasCalories: true,
+        primaryMetric: 'duration',
+      ),
+    ),
+    Exercise(
+      id: 'cardio_5',
+      userId: 'user1',
+      exerciseName: 'Rowing',
+      targetMuscles: ['Cardiovascular', 'Back', 'Arms', 'Core', 'Legs'],
+      equipment: ['Rowing Machine', 'Water'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: 'cardio_6',
+      userId: 'user1',
+      exerciseName: 'Elliptical',
+      targetMuscles: ['Cardiovascular', 'Quads', 'Glutes', 'Calves'],
+      equipment: ['Elliptical'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'duration',
+      ),
+    ),
   ];
 
   // Dummy routines data
@@ -146,6 +243,9 @@ class _LogPageState extends State<LogPage> {
     _searchFocusNode.removeListener(_onFocusChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _distanceController.dispose();
+    _durationController.dispose();
+    _caloriesController.dispose();
     super.dispose();
   }
 
@@ -200,6 +300,11 @@ class _LogPageState extends State<LogPage> {
       if (exercise.equipment.isNotEmpty) {
         selectedEquipment = exercise.equipment.first;
       }
+      // Reset input fields
+      sets = [WorkoutSet()];
+      _distanceController.clear();
+      _durationController.clear();
+      _caloriesController.clear();
     });
     print('Exercise selected, unfocusing search field'); // Debug
     _searchFocusNode.unfocus();
@@ -249,34 +354,6 @@ class _LogPageState extends State<LogPage> {
       return;
     }
 
-    // Calculate average weight and reps from all sets
-    double totalWeight = 0;
-    int totalReps = 0;
-    int validSets = 0;
-
-    for (var set in sets) {
-      final weight = double.tryParse(set.weightController.text);
-      final reps = int.tryParse(set.repsController.text);
-
-      if (weight != null && reps != null && weight > 0 && reps > 0) {
-        totalWeight += weight;
-        totalReps += reps;
-        validSets++;
-      }
-    }
-
-    if (validSets == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Please enter valid weight and reps for at least one set')),
-      );
-      return;
-    }
-
-    final avgWeight = totalWeight / validSets;
-    final avgReps = (totalReps / validSets).round();
-
     // Use selected exercise or create new one
     Exercise exerciseToLog = selectedExercise ??
         Exercise(
@@ -291,15 +368,68 @@ class _LogPageState extends State<LogPage> {
         Provider.of<WorkoutProvider>(context, listen: false);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    await workoutProvider.logExercise(
-      exerciseId: exerciseToLog.id,
-      exerciseName: exerciseToLog.exerciseName,
-      targetMuscles: exerciseToLog.targetMuscles,
-      weight: avgWeight,
-      reps: avgReps,
-      equipment: selectedEquipment,
-      sets: validSets,
-    );
+    if (exerciseToLog.exerciseType == ExerciseType.cardio) {
+      // Handle cardio exercise logging
+      final distance = double.tryParse(_distanceController.text);
+      final duration = int.tryParse(_durationController.text);
+      final calories = int.tryParse(_caloriesController.text);
+
+      if (distance == null && duration == null) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Please enter distance or duration')),
+        );
+        return;
+      }
+
+      await workoutProvider.logExercise(
+        exerciseId: exerciseToLog.id,
+        exerciseName: exerciseToLog.exerciseName,
+        targetMuscles: exerciseToLog.targetMuscles,
+        equipment: selectedEquipment,
+        sets: 1, // Cardio is logged as a single event
+        distance: distance,
+        duration: duration != null ? Duration(minutes: duration) : null,
+        calories: calories,
+      );
+    } else {
+      // Handle strength exercise logging
+      double totalWeight = 0;
+      int totalReps = 0;
+      int validSets = 0;
+
+      for (var set in sets) {
+        final weight = double.tryParse(set.weightController.text);
+        final reps = int.tryParse(set.repsController.text);
+
+        if (weight != null && reps != null && weight > 0 && reps > 0) {
+          totalWeight += weight;
+          totalReps += reps;
+          validSets++;
+        }
+      }
+
+      if (validSets == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Please enter valid weight and reps for at least one set')),
+        );
+        return;
+      }
+
+      final avgWeight = totalWeight / validSets;
+      final avgReps = (totalReps / validSets).round();
+
+      await workoutProvider.logExercise(
+        exerciseId: exerciseToLog.id,
+        exerciseName: exerciseToLog.exerciseName,
+        targetMuscles: exerciseToLog.targetMuscles,
+        weight: avgWeight,
+        reps: avgReps,
+        equipment: selectedEquipment,
+        sets: validSets,
+      );
+    }
 
     if (!mounted) return;
 
@@ -307,6 +437,9 @@ class _LogPageState extends State<LogPage> {
     _searchController.clear();
     setState(() {
       sets = [WorkoutSet()];
+      _distanceController.clear();
+      _durationController.clear();
+      _caloriesController.clear();
       selectedExercise = null;
       filteredExercises = [];
       showSuggestions = false;
@@ -430,6 +563,7 @@ class _LogPageState extends State<LogPage> {
         routineName: selectedRoutine!.name,
         targetMuscles: allTargetMuscles.toList(),
         exercises: loggedExercises,
+        orderIsRequired: selectedRoutine!.orderIsRequired,
       );
 
       if (!mounted) return;
@@ -862,6 +996,39 @@ class _LogPageState extends State<LogPage> {
           ),
         ),
         const SizedBox(height: 24),
+        if (selectedExercise?.exerciseType == ExerciseType.cardio)
+          _buildCardioInputSection()
+        else
+          _buildStrengthInputSection(),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _saveExercise,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B2027),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Save Exercise',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStrengthInputSection() {
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const Text(
           'Sets',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -870,11 +1037,60 @@ class _LogPageState extends State<LogPage> {
         ...sets.asMap().entries.map((entry) {
           final index = entry.key;
           final set = entry.value;
-          return WorkoutSetInput(
-            set: set,
-            index: index,
-            canDelete: sets.length > 1,
-            onDelete: () => _removeSet(index),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Set ${index + 1}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (sets.length > 1)
+                      IconButton(
+                        onPressed: () => _removeSet(index),
+                        icon: const Icon(Icons.delete_outline),
+                        color: Colors.red.shade400,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricInput(
+                        controller: set.weightController,
+                        label: 'Weight (${unitsProvider.weightUnit})',
+                        hint: '0',
+                        icon: Icons.fitness_center,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildMetricInput(
+                        controller: set.repsController,
+                        label: 'Reps',
+                        hint: '0',
+                        icon: Icons.repeat,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           );
         }),
         const SizedBox(height: 12),
@@ -895,25 +1111,85 @@ class _LogPageState extends State<LogPage> {
             ),
           ),
         ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _saveExercise,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B2027),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+      ],
+    );
+  }
+
+  Widget _buildMetricInput({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    IconData? icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon:
+                icon != null ? Icon(icon, color: Colors.grey.shade500) : null,
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
-            child: const Text(
-              'Save Exercise',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCardioInputSection() {
+    if (selectedExercise == null) return const SizedBox.shrink();
+
+    final metrics = selectedExercise!.cardioMetrics;
+    if (metrics == null) return const SizedBox.shrink();
+
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Metrics',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 16),
+        if (metrics.hasDistance) ...[
+          _buildMetricInput(
+            controller: _distanceController,
+            label: 'Distance (${unitsProvider.distanceUnit})',
+            hint: '0.0',
+            icon: Icons.directions_run,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (metrics.hasDuration) ...[
+          _buildMetricInput(
+            controller: _durationController,
+            label: 'Duration (minutes)',
+            hint: '0',
+            icon: Icons.timer_outlined,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (metrics.hasCalories) ...[
+          _buildMetricInput(
+            controller: _caloriesController,
+            label: 'Calories Burned',
+            hint: '0',
+            icon: Icons.local_fire_department_outlined,
+          ),
+          const SizedBox(height: 16),
+        ],
       ],
     );
   }

@@ -68,11 +68,50 @@ class ExerciseHistoryPage extends StatelessWidget {
               return ExerciseCard(
                 exercise: exercise,
                 showEditButton: true,
+                onDelete: () => _showDeleteExerciseDialog(
+                    context, exercise, workoutProvider),
               );
             },
           );
         },
       ),
+    );
+  }
+
+  void _showDeleteExerciseDialog(BuildContext context, LoggedExercise exercise,
+      WorkoutProvider workoutProvider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Exercise'),
+          content: Text(
+            'Are you sure you want to delete "${exercise.exerciseName}" from your history? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await workoutProvider.deleteLoggedExercise(exercise.id);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Exercise "${exercise.exerciseName}" deleted from history'),
+                    ),
+                  );
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -7,11 +7,13 @@ import 'muscle_icon.dart';
 class RoutineCard extends StatelessWidget {
   final LoggedRoutine routine;
   final bool showEditButton;
+  final VoidCallback? onDelete;
 
   const RoutineCard({
     super.key,
     required this.routine,
     this.showEditButton = false,
+    this.onDelete,
   });
 
   @override
@@ -51,6 +53,16 @@ class RoutineCard extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         color: const Color(0xFF1B2027),
+                      ),
+                    ],
+                    if (onDelete != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        iconSize: 20,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ],
@@ -127,6 +139,11 @@ class RoutineCard extends StatelessWidget {
           '${exercise.weight}kg × ${exercise.reps} reps, ${exercise.sets} sets',
           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
         ),
+        trailing: IconButton(
+          onPressed: () => _showDeleteExerciseDialog(context, exercise),
+          icon: const Icon(Icons.delete, color: Colors.red),
+          iconSize: 20,
+        ),
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -198,19 +215,16 @@ class RoutineCard extends StatelessWidget {
                           );
                         }
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Please enter valid numbers for all fields'),
-                          ),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter valid numbers'),
+                            ),
+                          );
+                        }
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B2027),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Update Exercise'),
+                    child: const Text('Update'),
                   ),
                 ),
               ],
@@ -218,6 +232,79 @@ class RoutineCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showDeleteExerciseDialog(
+      BuildContext context, LoggedExercise exercise) {
+    // Check if this routine is order-dependent
+    final isOrderDependent = routine.orderIsRequired;
+    final exerciseIndex =
+        routine.exercises.indexWhere((e) => e.id == exercise.id);
+    final exercisesAfter =
+        exerciseIndex != -1 && exerciseIndex < routine.exercises.length - 1
+            ? routine.exercises.skip(exerciseIndex + 1).toList()
+            : <LoggedExercise>[];
+
+    String warningMessage =
+        'Are you sure you want to delete "${exercise.exerciseName}" from this routine?';
+
+    if (isOrderDependent && exercisesAfter.isNotEmpty) {
+      warningMessage +=
+          '\n\nThis routine requires exercises to be performed in order. Deleting this exercise will also delete the following exercises:\n';
+      for (final ex in exercisesAfter) {
+        warningMessage += '• ${ex.exerciseName}\n';
+      }
+      warningMessage += '\nThis action cannot be undone.';
+    } else {
+      warningMessage += ' This action cannot be undone.';
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Exercise'),
+          content: Text(warningMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final workoutProvider =
+                    Provider.of<WorkoutProvider>(context, listen: false);
+
+                if (isOrderDependent && exerciseIndex != -1) {
+                  // Delete from this exercise onwards
+                  await workoutProvider.deleteLoggedRoutineExercisesFromIndex(
+                      routine.id, exerciseIndex);
+                } else {
+                  // Delete just this exercise
+                  await workoutProvider.deleteLoggedRoutineExercise(
+                      routine.id, exercise.id);
+                }
+
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Close delete dialog
+                  Navigator.of(context).pop(); // Close edit dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isOrderDependent &&
+                              exercisesAfter.isNotEmpty
+                          ? '${exercise.exerciseName} and ${exercisesAfter.length} following exercises deleted'
+                          : '${exercise.exerciseName} deleted from routine'),
+                    ),
+                  );
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

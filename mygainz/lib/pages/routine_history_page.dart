@@ -68,11 +68,50 @@ class RoutineHistoryPage extends StatelessWidget {
               return RoutineCard(
                 routine: routine,
                 showEditButton: true,
+                onDelete: () =>
+                    _showDeleteRoutineDialog(context, routine, workoutProvider),
               );
             },
           );
         },
       ),
+    );
+  }
+
+  void _showDeleteRoutineDialog(BuildContext context, LoggedRoutine routine,
+      WorkoutProvider workoutProvider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Routine'),
+          content: Text(
+            'Are you sure you want to delete "${routine.name}" from your history? This will also delete all ${routine.exercises.length} exercises in this routine. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await workoutProvider.deleteLoggedRoutine(routine.id);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Routine "${routine.name}" deleted from history'),
+                    ),
+                  );
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

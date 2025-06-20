@@ -7,6 +7,8 @@ import '../widgets/progress_metric_toggle.dart';
 import '../widgets/muscle_group_progress_chart.dart';
 import '../widgets/equipment_performance_chart.dart';
 import '../widgets/equipment_improvement_list.dart';
+import '../widgets/personal_records_dashboard.dart';
+import '../widgets/stat_card.dart';
 import 'dart:math' as math;
 
 class ProgressPage extends StatefulWidget {
@@ -88,9 +90,12 @@ class _ProgressPageState extends State<ProgressPage> {
     final Map<String, List<double>> weightsByMuscle = {};
 
     for (final exercise in exercises) {
+      // Skip exercises without weight data
+      if (exercise.weight == null) continue;
+
       for (final muscle in exercise.targetMuscles) {
         weightsByMuscle[muscle] = (weightsByMuscle[muscle] ?? [])
-          ..add(exercise.weight);
+          ..add(exercise.weight!);
       }
     }
 
@@ -113,6 +118,9 @@ class _ProgressPageState extends State<ProgressPage> {
         exercises.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b);
 
     for (final exercise in exercises) {
+      // Skip exercises without weight data
+      if (exercise.weight == null) continue;
+
       final monthsFromStart =
           exercise.date.difference(earliestDate).inDays ~/ 30;
 
@@ -126,7 +134,7 @@ class _ProgressPageState extends State<ProgressPage> {
           equipmentData[exercise.equipment] ?? {};
       equipmentData[exercise.equipment]![monthsFromStart] =
           (equipmentData[exercise.equipment]![monthsFromStart] ?? [])
-            ..add(exercise.weight);
+            ..add(exercise.weight!);
     }
 
     // Convert to FlSpot data
@@ -157,6 +165,9 @@ class _ProgressPageState extends State<ProgressPage> {
 
     // Group exercises by equipment
     for (final exercise in exercises) {
+      // Skip exercises without weight data
+      if (exercise.weight == null) continue;
+
       // Filter by muscle group if selected
       if (selectedMuscleGroup != 'All Muscles' &&
           !exercise.targetMuscles.contains(selectedMuscleGroup)) {
@@ -184,10 +195,11 @@ class _ProgressPageState extends State<ProgressPage> {
           exerciseList.skip(exerciseList.length - quarterSize).toList();
 
       final firstAvg =
-          firstQuarter.map((e) => e.weight).reduce((a, b) => a + b) /
+          firstQuarter.map((e) => e.weight!).reduce((a, b) => a + b) /
               firstQuarter.length;
-      final lastAvg = lastQuarter.map((e) => e.weight).reduce((a, b) => a + b) /
-          lastQuarter.length;
+      final lastAvg =
+          lastQuarter.map((e) => e.weight!).reduce((a, b) => a + b) /
+              lastQuarter.length;
 
       if (firstAvg > 0) {
         improvements[equipment] = ((lastAvg - firstAvg) / firstAvg) * 100;
@@ -197,6 +209,27 @@ class _ProgressPageState extends State<ProgressPage> {
     });
 
     return improvements;
+  }
+
+  // Calculate total cardio metrics
+  Map<String, double> _calculateCardioTotals(List<LoggedExercise> exercises) {
+    double totalDistance = 0;
+    double totalDuration = 0;
+    double totalCalories = 0;
+
+    for (final exercise in exercises) {
+      if (exercise.isCardio) {
+        totalDistance += exercise.distance ?? 0;
+        totalDuration += exercise.duration?.inMinutes.toDouble() ?? 0;
+        totalCalories += exercise.calories ?? 0;
+      }
+    }
+
+    return {
+      'distance': totalDistance,
+      'duration': totalDuration,
+      'calories': totalCalories,
+    };
   }
 
   @override
@@ -229,8 +262,16 @@ class _ProgressPageState extends State<ProgressPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Personal Records Dashboard
+                        const PersonalRecordsDashboard(),
+                        const SizedBox(height: 32),
+
                         // Muscle Group Progress Section
                         _buildMuscleGroupProgressSection(workoutProvider),
+                        const SizedBox(height: 32),
+
+                        // Cardio Performance Section
+                        _buildCardioPerformanceSection(workoutProvider),
                         const SizedBox(height: 32),
 
                         // Equipment Performance Section
@@ -342,6 +383,50 @@ class _ProgressPageState extends State<ProgressPage> {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildCardioPerformanceSection(WorkoutProvider workoutProvider) {
+    final filteredExercises =
+        _filterExercisesByTime(workoutProvider.loggedExercises);
+    final cardioTotals = _calculateCardioTotals(filteredExercises);
+
+    // Only show the section if there is cardio data
+    if (cardioTotals.values.every((v) => v == 0)) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Cardio Performance',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: StatCard(
+                title: 'Total Distance',
+                value: '${cardioTotals['distance']!.toStringAsFixed(1)} km',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: StatCard(
+                title: 'Total Duration',
+                value: '${cardioTotals['duration']!.toStringAsFixed(0)} min',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        StatCard(
+          title: 'Total Calories Burned',
+          value: '${cardioTotals['calories']!.toStringAsFixed(0)} kcal',
+        ),
       ],
     );
   }

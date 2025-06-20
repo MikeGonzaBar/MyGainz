@@ -100,8 +100,10 @@ class DataExportService {
         exercise.id,
         exercise.exerciseName,
         exercise.targetMuscles.join('; '),
-        unitsProvider.convertWeight(exercise.weight).toStringAsFixed(2),
-        exercise.reps.toString(),
+        exercise.weight != null
+            ? unitsProvider.convertWeight(exercise.weight!).toStringAsFixed(2)
+            : 'N/A',
+        exercise.reps?.toString() ?? 'N/A',
         exercise.sets.toString(),
         exercise.equipment,
         exercise.date.toIso8601String(),
@@ -128,7 +130,11 @@ class DataExportService {
     for (final routine in workoutProvider.loggedRoutines) {
       // Create exercise details string
       final exerciseDetails = routine.exercises.map((exercise) {
-        return '${exercise.exerciseName} (${unitsProvider.convertWeight(exercise.weight).toStringAsFixed(1)}${unitsProvider.weightUnit} x ${exercise.reps} reps x ${exercise.sets} sets)';
+        final weightText = exercise.weight != null
+            ? '${unitsProvider.convertWeight(exercise.weight!).toStringAsFixed(1)}${unitsProvider.weightUnit}'
+            : 'N/A';
+        final repsText = exercise.reps?.toString() ?? 'N/A';
+        return '${exercise.exerciseName} ($weightText x $repsText reps x ${exercise.sets} sets)';
       }).join(' | ');
 
       allData.add([
@@ -171,8 +177,12 @@ class DataExportService {
             exercise.id,
             exercise.exerciseName,
             exercise.targetMuscles.join('; '),
-            unitsProvider.convertWeight(exercise.weight).toStringAsFixed(2),
-            exercise.reps.toString(),
+            exercise.weight != null
+                ? unitsProvider
+                    .convertWeight(exercise.weight!)
+                    .toStringAsFixed(2)
+                : 'N/A',
+            exercise.reps?.toString() ?? 'N/A',
             exercise.sets.toString(),
             exercise.equipment,
             routine.date.toIso8601String(),

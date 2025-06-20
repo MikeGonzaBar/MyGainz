@@ -20,7 +20,7 @@ class _ExercisePageState extends State<ExercisePage>
   String _selectedCategory = 'All';
 
   // Dummy data for exercises
-  List<Exercise> _exercises = [
+  final List<Exercise> _exercises = [
     Exercise(
       id: '1',
       userId: 'user1',
@@ -63,10 +63,55 @@ class _ExercisePageState extends State<ExercisePage>
       targetMuscles: ['Biceps'],
       equipment: ['Dumbbell', 'Barbell'],
     ),
+    Exercise(
+      id: '7',
+      userId: 'user1',
+      exerciseName: 'Running',
+      targetMuscles: ['Legs', 'Core'],
+      equipment: ['None'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: '8',
+      userId: 'user1',
+      exerciseName: 'Cycling',
+      targetMuscles: ['Legs', 'Glutes'],
+      equipment: ['Machine'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: true,
+        hasCalories: true,
+        primaryMetric: 'distance',
+      ),
+    ),
+    Exercise(
+      id: '9',
+      userId: 'user1',
+      exerciseName: 'Swimming',
+      targetMuscles: ['Full Body', 'Back', 'Shoulders'],
+      equipment: ['None'],
+      exerciseType: ExerciseType.cardio,
+      cardioMetrics: CardioMetrics(
+        hasDistance: true,
+        hasDuration: true,
+        hasPace: false,
+        hasCalories: true,
+        primaryMetric: 'duration',
+      ),
+    ),
   ];
 
   // Dummy data for routines
-  List<Routine> _routines = [
+  final List<Routine> _routines = [
     Routine(
       id: '1',
       userId: 'user1',
@@ -92,6 +137,10 @@ class _ExercisePageState extends State<ExercisePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Clean up any orphaned routines on initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cleanupOrphanedRoutines();
+    });
   }
 
   List<Exercise> get filteredExercises {
@@ -104,6 +153,14 @@ class _ExercisePageState extends State<ExercisePage>
           )
           .toList();
     }
+  }
+
+  // Get routines that have at least one valid exercise
+  List<Routine> get validRoutines {
+    final exerciseIds = _exercises.map((e) => e.id).toSet();
+    return _routines.where((routine) {
+      return routine.exerciseIds.any((id) => exerciseIds.contains(id));
+    }).toList();
   }
 
   @override
@@ -127,6 +184,8 @@ class _ExercisePageState extends State<ExercisePage>
               targetMuscles:
                   List<String>.from(exerciseData['targetMuscles'] as List),
               equipment: List<String>.from(exerciseData['equipment'] as List),
+              exerciseType: exerciseData['exerciseType'] as ExerciseType,
+              cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
             );
 
             setState(() {
@@ -161,6 +220,8 @@ class _ExercisePageState extends State<ExercisePage>
               targetMuscles:
                   List<String>.from(exerciseData['targetMuscles'] as List),
               equipment: List<String>.from(exerciseData['equipment'] as List),
+              exerciseType: exerciseData['exerciseType'] as ExerciseType,
+              cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
             );
 
             setState(() {
@@ -254,6 +315,120 @@ class _ExercisePageState extends State<ExercisePage>
     );
   }
 
+  void _deleteExercise(BuildContext context, Exercise exercise) {
+    // Check if any routines use this exercise
+    final affectedRoutines = _routines
+        .where((routine) => routine.exerciseIds.contains(exercise.id))
+        .toList();
+
+    String warningMessage =
+        'Are you sure you want to delete "${exercise.exerciseName}"? This action cannot be undone.';
+
+    if (affectedRoutines.isNotEmpty) {
+      warningMessage +=
+          '\n\nThis exercise is used in the following routines:\n';
+      for (final routine in affectedRoutines) {
+        warningMessage += '• ${routine.name}\n';
+      }
+      warningMessage += '\nThese routines will also be deleted.';
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Exercise'),
+          content: Text(warningMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  // Delete the exercise
+                  _exercises.removeWhere((e) => e.id == exercise.id);
+
+                  // Delete routines that use this exercise
+                  _routines
+                      .removeWhere((r) => r.exerciseIds.contains(exercise.id));
+                });
+                Navigator.of(context).pop();
+
+                String successMessage =
+                    'Exercise "${exercise.exerciseName}" deleted successfully!';
+                if (affectedRoutines.isNotEmpty) {
+                  successMessage +=
+                      '\n${affectedRoutines.length} routine(s) also deleted.';
+                }
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(successMessage),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteRoutine(BuildContext context, Routine routine) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Routine'),
+          content: Text(
+            'Are you sure you want to delete "${routine.name}"? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _routines.removeWhere((r) => r.id == routine.id);
+                });
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        Text('Routine "${routine.name}" deleted successfully!'),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Clean up routines that have no valid exercises
+  void _cleanupOrphanedRoutines() {
+    final exerciseIds = _exercises.map((e) => e.id).toSet();
+    final orphanedRoutines = _routines.where((routine) {
+      return routine.exerciseIds.every((id) => !exerciseIds.contains(id));
+    }).toList();
+
+    if (orphanedRoutines.isNotEmpty) {
+      setState(() {
+        _routines.removeWhere((r) => orphanedRoutines.contains(r));
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -332,6 +507,8 @@ class _ExercisePageState extends State<ExercisePage>
                               exercise: exercise,
                               onEdit: () =>
                                   _navigateToEditExercise(context, exercise),
+                              onDelete: () =>
+                                  _deleteExercise(context, exercise),
                             );
                           },
                         ),
@@ -342,14 +519,15 @@ class _ExercisePageState extends State<ExercisePage>
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: ListView.builder(
-                      itemCount: _routines.length,
+                      itemCount: validRoutines.length,
                       itemBuilder: (context, index) {
-                        final routine = _routines[index];
+                        final routine = validRoutines[index];
                         return RoutineLibraryCard(
                           routine: routine,
                           availableExercises: _exercises,
                           onEdit: () =>
                               _navigateToEditRoutine(context, routine),
+                          onDelete: () => _deleteRoutine(context, routine),
                         );
                       },
                     ),

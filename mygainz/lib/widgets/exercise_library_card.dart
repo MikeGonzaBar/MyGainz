@@ -4,11 +4,13 @@ import '../models/exercise.dart';
 class ExerciseLibraryCard extends StatelessWidget {
   final Exercise exercise;
   final VoidCallback onEdit;
+  final VoidCallback? onDelete;
 
   const ExerciseLibraryCard({
     super.key,
     required this.exercise,
     required this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -32,11 +34,22 @@ class ExerciseLibraryCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: onEdit,
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: onEdit,
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                    ),
+                    if (onDelete != null)
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: onDelete,
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                  ],
                 ),
               ],
             ),

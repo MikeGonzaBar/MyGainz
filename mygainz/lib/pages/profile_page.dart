@@ -32,9 +32,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final Map<String, double> muscleWeights = {};
 
     for (final exercise in exercises) {
+      // Skip exercises without weight data (cardio exercises)
+      if (exercise.weight == null) continue;
+
       for (final muscle in exercise.targetMuscles) {
         muscleCounts[muscle] = (muscleCounts[muscle] ?? 0) + 1;
-        muscleWeights[muscle] = (muscleWeights[muscle] ?? 0) + exercise.weight;
+        muscleWeights[muscle] = (muscleWeights[muscle] ?? 0) + exercise.weight!;
       }
     }
 

@@ -214,13 +214,21 @@ The application uses local storage with SharedPreferences for fast, offline-firs
     {
       "id": String,
       "exerciseId": String,
-      "name": String,
+      "exerciseName": String,
       "targetMuscles": List<String>,
-      "weight": double,      // stored in kg
-      "reps": int,
       "equipment": String,
       "sets": int,
-      "date": String
+      "date": String,
+      // Strength-specific
+      "weight": double?,      // stored in kg
+      "reps": int?,
+      // Cardio-specific
+      "distance": double?,    // stored in km
+      "duration": int?,       // stored in minutes
+      "calories": int?,
+      "pace": double?,
+      "speed": double?,
+      "heartRate": int?
     }
   ]
 }
@@ -237,6 +245,31 @@ The application uses local storage with SharedPreferences for fast, offline-firs
       "targetMuscles": List<String>,
       "date": String,
       "exercises": List<LoggedExercise>
+    }
+  ]
+}
+```
+
+### Personal Record Data
+```dart
+{
+  "personalRecords": [
+    {
+      "id": String,
+      "exerciseId": String,
+      "exerciseName": String,
+      "date": String,
+      "equipment": String,
+      "type": String, // "weight", "distance", "duration", "pace"
+      // Strength-specific
+      "weight": double?,
+      "reps": int?,
+      "sets": int?,
+      "oneRepMax": double?,
+      // Cardio-specific
+      "distance": double?,
+      "duration": int?, // stored in minutes
+      "pace": double?
     }
   ]
 }

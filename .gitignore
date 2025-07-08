@@ -150,3 +150,8 @@ app.*.symbols
 
 # OS
 Thumbs.db
+
+# Releases directory - Allow APKs to be committed
+# Note: This allows the releases/ directory and .apk files to be tracked
+!releases/
+!releases/*.apk

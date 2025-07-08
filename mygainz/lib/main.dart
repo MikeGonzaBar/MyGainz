@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/units_provider.dart';
 import 'providers/workout_provider.dart';
 import 'pages/login_page.dart';
 import 'pages/main_frame.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -27,6 +33,28 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B2027)),
           useMaterial3: true,
           fontFamily: 'Manrope',
+          textTheme: const TextTheme(
+            // Headlines (used for page titles, large headers)
+            headlineLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            headlineMedium:
+                TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+            // Titles (used for section headers, card titles)
+            titleLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            titleSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+
+            // Body text (main content, paragraphs)
+            bodyLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            bodyMedium: TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
+            bodySmall: TextStyle(fontSize: 10, fontWeight: FontWeight.normal),
+
+            // Labels (buttons, form labels, small text)
+            labelLarge: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+            labelMedium: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+            labelSmall: TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
+          ),
         ),
         home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
@@ -62,27 +90,16 @@ class AuthWrapper extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Debug buttons
-                  Column(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          await authProvider.debugPrintStoredData();
-                        },
-                        child: const Text('Debug Storage'),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          authProvider.forceCompleteInitialization();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Force Continue'),
-                      ),
-                    ],
+                  // Simplified debug button that's safer
+                  ElevatedButton(
+                    onPressed: () {
+                      authProvider.forceCompleteInitialization();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Continue'),
                   ),
                 ],
               ),
@@ -90,7 +107,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // Add debug button in debug mode
+        // Show error state with recovery options
         if (authProvider.error != null) {
           return Scaffold(
             backgroundColor: Colors.white,
@@ -121,27 +138,16 @@ class AuthWrapper extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Column(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          await authProvider.debugPrintStoredData();
-                        },
-                        child: const Text('Debug Storage'),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          authProvider.clearError();
-                          authProvider.forceCompleteInitialization();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Clear Error & Continue'),
-                      ),
-                    ],
+                  ElevatedButton(
+                    onPressed: () {
+                      authProvider.clearError();
+                      authProvider.forceCompleteInitialization();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),

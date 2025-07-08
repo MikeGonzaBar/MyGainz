@@ -119,14 +119,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
       ),
     );
   }
@@ -153,7 +152,9 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Icon(icon, color: Colors.grey.shade600),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
       ),
       trailing: DropdownButton<String>(
         value: value,
@@ -183,18 +184,16 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       title: Text(
         title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: isDestructive ? Colors.red : Colors.black87,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: isDestructive ? Colors.red : Colors.black87,
+            ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          color: isDestructive ? Colors.red.shade300 : Colors.grey.shade600,
-          fontSize: 14,
-        ),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: isDestructive ? Colors.red.shade300 : Colors.grey.shade600,
+            ),
       ),
       trailing: Icon(
         Icons.arrow_forward_ios,

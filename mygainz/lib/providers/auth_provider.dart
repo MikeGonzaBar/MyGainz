@@ -1,22 +1,31 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
+import '../models/user_model.dart' as local_user;
+import '../services/user_firestore_service.dart';
 
 class AuthProvider with ChangeNotifier {
-  User? _currentUser;
-  bool _isLoading = true; // Start with loading true
+  local_user.User? _currentUser;
+  bool _isLoading = true;
   bool _isInitialized = false;
   String? _error;
 
-  User? get currentUser => _currentUser;
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
+  final UserFirestoreService _userFirestoreService = UserFirestoreService();
+
+  local_user.User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
   String? get error => _error;
   bool get isLoggedIn => _currentUser != null && _isInitialized;
 
-  static const String _userKey = 'current_user';
-  static const String _usersKey = 'registered_users';
+  // Static method to initialize AuthProvider
+  static AuthProvider? _instance;
+  static AuthProvider get instance {
+    _instance ??= AuthProvider();
+    return _instance!;
+  }
 
   AuthProvider() {
     _initializeAuth();
@@ -24,25 +33,37 @@ class AuthProvider with ChangeNotifier {
 
   // Initialize authentication state
   Future<void> _initializeAuth() async {
-    print('Starting authentication initialization...');
+    print('Starting Firebase authentication initialization...');
     try {
-      // Add timeout protection
-      await Future.wait([
-        _loadCurrentUser(),
-      ]).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          print('Auth initialization timed out');
-          throw Exception('Authentication initialization timed out');
-        },
-      );
+      // Clean up any old authentication data first
+      await cleanupOldAuthData();
 
-      print('Auth initialization completed successfully');
+      // Listen to auth state changes
+      _firebaseAuth.authStateChanges().listen((firebase_auth.User? user) {
+        print('=== AUTH STATE CHANGE ===');
+        if (user != null) {
+          print('User authenticated, loading data...');
+          _printFirebaseUserInfo(user);
+          _loadUserData(user.uid);
+        } else {
+          print('User signed out or not authenticated');
+          _currentUser = null;
+          notifyListeners();
+        }
+        print('========================');
+      });
+
+      // Check current user
+      final firebase_auth.User? currentFirebaseUser = _firebaseAuth.currentUser;
+      if (currentFirebaseUser != null) {
+        await _loadUserData(currentFirebaseUser.uid);
+      }
+
+      print('Firebase auth initialization completed successfully');
     } catch (e) {
-      print('Auth initialization error: $e');
+      print('Firebase auth initialization error: $e');
       _error = 'Error initializing authentication: ${e.toString()}';
     } finally {
-      // Always mark as initialized and stop loading
       _isInitialized = true;
       _isLoading = false;
       notifyListeners();
@@ -51,82 +72,100 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Load current user from SharedPreferences
-  Future<void> _loadCurrentUser() async {
+  // Load user data from Firestore using Firebase UID
+  Future<void> _loadUserData(String uid) async {
     try {
-      print('Loading current user from SharedPreferences...');
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_userKey);
+      print('Loading user data from Firestore for UID: $uid');
 
-      print('Raw user data from storage: $userJson');
+      final user = await _userFirestoreService.getUser(uid);
 
-      if (userJson != null && userJson.isNotEmpty) {
-        try {
-          final userMap = json.decode(userJson);
-          _currentUser = User.fromJson(userMap);
-          print('User loaded successfully: ${_currentUser?.email}');
-        } catch (e) {
-          print('Error parsing user JSON: $e');
-          // Clear corrupted data
-          await prefs.remove(_userKey);
-        }
+      if (user != null) {
+        _currentUser = user;
+        print('User data loaded from Firestore: ${user.email}');
       } else {
-        print('No user data found in SharedPreferences');
+        print('No user data found in Firestore for UID: $uid');
+        // Create default user from Firebase data
+        await _createDefaultUserFromFirebase();
       }
-    } catch (e) {
-      print('Error loading user: $e');
-      _error = 'Error loading user session: ${e.toString()}';
-    }
-  }
 
-  // Save current user to SharedPreferences
-  Future<void> _saveCurrentUser(User user) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = json.encode(user.toJson());
-      await prefs.setString(_userKey, userJson);
-      print('User saved successfully: ${user.email}');
+      notifyListeners();
     } catch (e) {
-      _error = 'Error saving user session';
-      print('Error saving user: $e');
+      print('Error loading user data from Firestore: $e');
+      _error = 'Error loading user data';
       notifyListeners();
     }
   }
 
-  // Get all registered users from SharedPreferences
-  Future<List<User>> _getRegisteredUsers() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getStringList(_usersKey) ?? [];
+  // Helper method to create default user from Firebase data
+  Future<void> _createDefaultUserFromFirebase() async {
+    final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser != null) {
+      // Debug: Print all Firebase user information
+      _printFirebaseUserInfo(firebaseUser);
 
-      print('Loading ${usersJson.length} registered users');
+      _currentUser = local_user.User(
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName?.split(' ').first ?? 'User',
+        lastName: firebaseUser.displayName?.split(' ').skip(1).join(' ') ?? '',
+        dateOfBirth: DateTime.now()
+            .subtract(const Duration(days: 365 * 25)), // Default age
+        email: firebaseUser.email ?? '',
+        password: '', // Not stored locally
+        height: 170.0, // Default height
+        weight: 70.0, // Default weight
+        fatPercentage: 15.0,
+        musclePercentage: 35.0,
+        createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-      return usersJson.map((userJson) {
-        final userMap = json.decode(userJson);
-        return User.fromJson(userMap);
-      }).toList();
-    } catch (e) {
-      print('Error loading registered users: $e');
-      return [];
+      // Save the default user data to Firestore
+      await _userFirestoreService.saveUser(_currentUser!);
+      print(
+          'Created and saved default user to Firestore: ${_currentUser?.email}');
     }
   }
 
-  // Save all users to SharedPreferences
-  Future<void> _saveRegisteredUsers(List<User> users) async {
+  // Debug method to print all Firebase user information
+  void _printFirebaseUserInfo(firebase_auth.User user) {
+    print('=== FIREBASE USER DEBUG INFO ===');
+    print('UID: ${user.uid}');
+    print('Email: ${user.email}');
+    print('Display Name: ${user.displayName}');
+    print('Photo URL: ${user.photoURL}');
+    print('Phone Number: ${user.phoneNumber}');
+    print('Email Verified: ${user.emailVerified}');
+    print('Is Anonymous: ${user.isAnonymous}');
+    print('Tenant ID: ${user.tenantId}');
+    print('Refresh Token: ${user.refreshToken}');
+    print('Creation Time: ${user.metadata.creationTime}');
+    print('Last Sign In Time: ${user.metadata.lastSignInTime}');
+    print('Provider Data:');
+    for (var providerData in user.providerData) {
+      print('  - Provider ID: ${providerData.providerId}');
+      print('  - UID: ${providerData.uid}');
+      print('  - Display Name: ${providerData.displayName}');
+      print('  - Email: ${providerData.email}');
+      print('  - Phone Number: ${providerData.phoneNumber}');
+      print('  - Photo URL: ${providerData.photoURL}');
+    }
+    print('Multi Factor Status: MFA available: ${user.multiFactor != null}');
+    print('================================');
+  }
+
+  // Save user data to Firestore using Firebase UID
+  Future<void> _saveUserData(local_user.User user) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final usersJson =
-          users.map((user) => json.encode(user.toJson())).toList();
-      await prefs.setStringList(_usersKey, usersJson);
-      print('Saved ${users.length} registered users');
+      await _userFirestoreService.saveUser(user);
+      print('User data saved to Firestore successfully: ${user.email}');
     } catch (e) {
       _error = 'Error saving user data';
-      print('Error saving registered users: $e');
+      print('Error saving user data to Firestore: $e');
       notifyListeners();
     }
   }
 
-  // Register a new user
+  // Register a new user with Firebase Auth
   Future<bool> register({
     required String email,
     required String password,
@@ -141,44 +180,57 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Check if email already exists
-      final users = await _getRegisteredUsers();
-      if (users
-          .any((user) => user.email.toLowerCase() == email.toLowerCase())) {
-        _error = 'Email already registered';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Create new user
-      final newUser = User(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: name,
-        lastName: lastName,
-        dateOfBirth: dateOfBirth,
-        email: email.toLowerCase(),
-        password: password, // In production, hash this
-        height: height,
-        weight: weight,
-        fatPercentage: 15.0, // Default values
-        musclePercentage: 35.0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+      // Create user with Firebase Auth
+      final firebase_auth.UserCredential userCredential =
+          await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
       );
 
-      // Save to registered users
-      users.add(newUser);
-      await _saveRegisteredUsers(users);
+      if (userCredential.user != null) {
+        // Debug: Print all Firebase user information
+        print('=== REGISTRATION SUCCESS ===');
+        _printFirebaseUserInfo(userCredential.user!);
 
-      // Set as current user
-      _currentUser = newUser;
-      await _saveCurrentUser(newUser);
+        // Update Firebase user display name
+        await userCredential.user!.updateDisplayName('$name $lastName');
 
+        // Create local user data
+        final newUser = local_user.User(
+          id: userCredential.user!.uid,
+          name: name,
+          lastName: lastName,
+          dateOfBirth: dateOfBirth,
+          email: email.toLowerCase(),
+          password: '', // Don't store password locally
+          height: height,
+          weight: weight,
+          fatPercentage: 15.0, // Default values
+          musclePercentage: 35.0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        // Save user data locally
+        await _saveUserData(newUser);
+        _currentUser = newUser;
+
+        _isLoading = false;
+        notifyListeners();
+        print('User registered successfully: ${newUser.email}');
+        return true;
+      }
+
+      _error = 'Failed to create user account';
       _isLoading = false;
       notifyListeners();
-      print('User registered successfully: ${newUser.email}');
-      return true;
+      return false;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      print('Registration error: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
       _error = 'Registration failed: ${e.toString()}';
       _isLoading = false;
@@ -188,7 +240,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Login user
+  // Login user with Firebase Auth
   Future<bool> login({
     required String email,
     required String password,
@@ -198,33 +250,39 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Find user in registered users
-      final users = await _getRegisteredUsers();
-      final user = users.firstWhere(
-        (user) => user.email.toLowerCase() == email.toLowerCase(),
-        orElse: () => throw Exception('User not found'),
+      // Sign in with Firebase Auth
+      final firebase_auth.UserCredential userCredential =
+          await _firebaseAuth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
       );
 
-      // Check password
-      if (user.password != password) {
-        _error = 'Invalid password';
+      if (userCredential.user != null) {
+        // Debug: Print all Firebase user information
+        print('=== LOGIN SUCCESS ===');
+        _printFirebaseUserInfo(userCredential.user!);
+
+        // Load user data
+        await _loadUserData(userCredential.user!.uid);
+
         _isLoading = false;
         notifyListeners();
-        return false;
+        print('User logged in successfully: ${userCredential.user!.email}');
+        return true;
       }
 
-      // Set as current user
-      _currentUser = user;
-      await _saveCurrentUser(user);
-
+      _error = 'Login failed';
       _isLoading = false;
       notifyListeners();
-      print('User logged in successfully: ${user.email}');
-      return true;
+      return false;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      print('Login error: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
-      _error = e.toString().contains('User not found')
-          ? 'No account found with this email'
-          : 'Login failed: ${e.toString()}';
+      _error = 'Login failed: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       print('Login error: $e');
@@ -232,35 +290,31 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Update user profile
-  Future<bool> updateUser(User updatedUser) async {
+  // Update user data
+  Future<bool> updateUser(local_user.User updatedUser) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // Update in registered users list
-      final users = await _getRegisteredUsers();
-      final userIndex = users.indexWhere((user) => user.id == updatedUser.id);
-
-      if (userIndex != -1) {
-        users[userIndex] = updatedUser.copyWith(updatedAt: DateTime.now());
-        await _saveRegisteredUsers(users);
-
-        // Update current user
-        _currentUser = users[userIndex];
-        await _saveCurrentUser(_currentUser!);
-
-        _isLoading = false;
-        notifyListeners();
-        print('User updated successfully: ${_currentUser?.email}');
-        return true;
-      } else {
-        _error = 'User not found';
-        _isLoading = false;
-        notifyListeners();
-        return false;
+      // Update Firebase user display name if changed
+      final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+      if (firebaseUser != null) {
+        final newDisplayName = '${updatedUser.name} ${updatedUser.lastName}';
+        if (firebaseUser.displayName != newDisplayName) {
+          await firebaseUser.updateDisplayName(newDisplayName);
+        }
       }
+
+      // Update user data in Firestore
+      final userWithTimestamp = updatedUser.copyWith(updatedAt: DateTime.now());
+      await _userFirestoreService.saveUser(userWithTimestamp);
+      _currentUser = userWithTimestamp;
+
+      _isLoading = false;
+      notifyListeners();
+      print('User updated successfully in Firestore: ${_currentUser?.email}');
+      return true;
     } catch (e) {
       _error = 'Update failed: ${e.toString()}';
       _isLoading = false;
@@ -274,23 +328,50 @@ class AuthProvider with ChangeNotifier {
   Future<bool> updateUserStats({
     double? weight,
     double? height,
+    double? fatPercentage,
+    double? musclePercentage,
   }) async {
     if (_currentUser == null) return false;
 
-    final updatedUser = _currentUser!.copyWith(
-      weight: weight ?? _currentUser!.weight,
-      height: height ?? _currentUser!.height,
-    );
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-    return await updateUser(updatedUser);
+      // Update fitness info in Firestore
+      await _userFirestoreService.updateUserFitnessInfo(
+        weight: weight,
+        height: height,
+        fatPercentage: fatPercentage,
+        musclePercentage: musclePercentage,
+      );
+
+      // Update local user data
+      _currentUser = _currentUser!.copyWith(
+        weight: weight ?? _currentUser!.weight,
+        height: height ?? _currentUser!.height,
+        fatPercentage: fatPercentage ?? _currentUser!.fatPercentage,
+        musclePercentage: musclePercentage ?? _currentUser!.musclePercentage,
+        updatedAt: DateTime.now(),
+      );
+
+      _isLoading = false;
+      notifyListeners();
+      print('User stats updated successfully in Firestore');
+      return true;
+    } catch (e) {
+      _error = 'Stats update failed: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      print('Stats update error: $e');
+      return false;
+    }
   }
 
   // Logout user
   Future<void> logout() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_userKey);
-
+      await _firebaseAuth.signOut();
       _currentUser = null;
       _error = null;
       notifyListeners();
@@ -310,8 +391,14 @@ class AuthProvider with ChangeNotifier {
 
   // Check if email exists (for validation)
   Future<bool> emailExists(String email) async {
-    final users = await _getRegisteredUsers();
-    return users.any((user) => user.email.toLowerCase() == email.toLowerCase());
+    try {
+      final methods =
+          await _firebaseAuth.fetchSignInMethodsForEmail(email.trim());
+      return methods.isNotEmpty;
+    } catch (e) {
+      print('Error checking email existence: $e');
+      return false;
+    }
   }
 
   // Delete account
@@ -323,18 +410,26 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Remove from registered users
-      final users = await _getRegisteredUsers();
-      users.removeWhere((user) => user.id == _currentUser!.id);
-      await _saveRegisteredUsers(users);
+      // Delete user data from Firestore
+      await _userFirestoreService.deleteUser(_currentUser!.id);
 
-      // Clear current user
-      await logout();
+      // Delete Firebase user
+      final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+      if (firebaseUser != null) {
+        await firebaseUser.delete();
+      }
 
+      _currentUser = null;
       _isLoading = false;
       notifyListeners();
       print('Account deleted successfully');
       return true;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      print('Delete account error: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
       _error = 'Failed to delete account: ${e.toString()}';
       _isLoading = false;
@@ -342,44 +437,6 @@ class AuthProvider with ChangeNotifier {
       print('Delete account error: $e');
       return false;
     }
-  }
-
-  // Debug method to check what's stored
-  Future<void> debugPrintStoredData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final currentUserJson = prefs.getString(_userKey);
-      final usersJson = prefs.getStringList(_usersKey);
-
-      print('=== DEBUG STORED DATA ===');
-      print('Current user: $currentUserJson');
-      print('Registered users count: ${usersJson?.length ?? 0}');
-      print('Registered users: $usersJson');
-      print(
-          'Auth state - Initialized: $_isInitialized, Loading: $_isLoading, LoggedIn: $isLoggedIn');
-      print('========================');
-    } catch (e) {
-      print('Error debugging stored data: $e');
-    }
-  }
-
-  // Force complete initialization (for debugging)
-  void forceCompleteInitialization() {
-    print('Force completing initialization...');
-    _isInitialized = true;
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  // Get current auth state for debugging
-  String getAuthStateDebug() {
-    return 'AuthProvider State:\n'
-        '- Initialized: $_isInitialized\n'
-        '- Loading: $_isLoading\n'
-        '- Has User: ${_currentUser != null}\n'
-        '- User Email: ${_currentUser?.email ?? 'null'}\n'
-        '- Error: ${_error ?? 'none'}\n'
-        '- Is Logged In: $isLoggedIn';
   }
 
   // Change password
@@ -394,42 +451,35 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Verify old password
-      if (_currentUser!.password != oldPassword) {
-        _error = 'Current password is incorrect';
+      final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+      if (firebaseUser == null) {
+        _error = 'User not authenticated';
         _isLoading = false;
         notifyListeners();
         return false;
       }
 
-      // Update password in current user
-      final updatedUser = _currentUser!.copyWith(
-        password: newPassword,
-        updatedAt: DateTime.now(),
+      // Re-authenticate user with old password
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: firebaseUser.email!,
+        password: oldPassword,
       );
 
-      // Update in registered users list
-      final users = await _getRegisteredUsers();
-      final userIndex = users.indexWhere((user) => user.id == updatedUser.id);
+      await firebaseUser.reauthenticateWithCredential(credential);
 
-      if (userIndex != -1) {
-        users[userIndex] = updatedUser;
-        await _saveRegisteredUsers(users);
+      // Update password
+      await firebaseUser.updatePassword(newPassword);
 
-        // Update current user
-        _currentUser = updatedUser;
-        await _saveCurrentUser(_currentUser!);
-
-        _isLoading = false;
-        notifyListeners();
-        print('Password updated successfully');
-        return true;
-      } else {
-        _error = 'User not found';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+      _isLoading = false;
+      notifyListeners();
+      print('Password updated successfully');
+      return true;
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      print('Change password error: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
       _error = 'Failed to change password: ${e.toString()}';
       _isLoading = false;
@@ -452,34 +502,171 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Check if email already exists (if email is being changed)
-      if (email != null &&
-          email.toLowerCase() != _currentUser!.email.toLowerCase()) {
-        final users = await _getRegisteredUsers();
-        if (users
-            .any((user) => user.email.toLowerCase() == email.toLowerCase())) {
-          _error = 'Email already in use by another account';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
+      final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+      if (firebaseUser == null) {
+        _error = 'User not authenticated';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
-      // Update user profile
+      // Update email in Firebase if changed
+      if (email != null &&
+          email.toLowerCase() != _currentUser!.email.toLowerCase()) {
+        await firebaseUser.updateEmail(email.toLowerCase());
+      }
+
+      // Update display name in Firebase if name changed
+      final newName = name ?? _currentUser!.name;
+      final newLastName = lastName ?? _currentUser!.lastName;
+      final newDisplayName = '$newName $newLastName';
+      if (firebaseUser.displayName != newDisplayName) {
+        await firebaseUser.updateDisplayName(newDisplayName);
+      }
+
+      // Update local user profile
       final updatedUser = _currentUser!.copyWith(
-        name: name ?? _currentUser!.name,
-        lastName: lastName ?? _currentUser!.lastName,
+        name: newName,
+        lastName: newLastName,
         email: email?.toLowerCase() ?? _currentUser!.email,
         updatedAt: DateTime.now(),
       );
 
       return await updateUser(updatedUser);
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      _error = _getFirebaseErrorMessage(e);
+      _isLoading = false;
+      notifyListeners();
+      print('Update profile error: ${e.code} - ${e.message}');
+      return false;
     } catch (e) {
       _error = 'Failed to update profile: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       print('Update profile error: $e');
       return false;
+    }
+  }
+
+  // Debug method to check what's stored
+  Future<void> debugPrintStoredData() async {
+    try {
+      final firebase_auth.User? firebaseUser = _firebaseAuth.currentUser;
+
+      print('=== DEBUG FIREBASE AUTH DATA ===');
+      print('Firebase user: ${firebaseUser?.email ?? 'null'}');
+      print('Firebase UID: ${firebaseUser?.uid ?? 'null'}');
+      print('Current user: ${_currentUser?.email ?? 'null'}');
+      print(
+          'Auth state - Initialized: $_isInitialized, Loading: $_isLoading, LoggedIn: $isLoggedIn');
+
+      if (firebaseUser != null) {
+        try {
+          final firestoreUser =
+              await _userFirestoreService.getUser(firebaseUser.uid);
+          print('Firestore user data: ${firestoreUser?.email ?? 'null'}');
+          print('Firestore user name: ${firestoreUser?.fullName ?? 'null'}');
+          print(
+              'Firestore user created: ${firestoreUser?.createdAt ?? 'null'}');
+        } catch (e) {
+          print('Error fetching Firestore user: $e');
+        }
+      }
+
+      print('===============================');
+    } catch (e) {
+      print('Error debugging stored data: $e');
+    }
+  }
+
+  // Clean up old authentication data that might cause crashes
+  Future<void> cleanupOldAuthData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Remove old authentication keys from previous implementation
+      await prefs.remove('current_user');
+      await prefs.remove('registered_users');
+
+      // Get all keys and remove any old user data format
+      final keys = prefs.getKeys();
+      for (final key in keys) {
+        if (key.startsWith('user_data_')) {
+          // Old format, remove it
+          await prefs.remove(key);
+          print('Removed old data key: $key');
+        }
+      }
+
+      print('Cleanup of old authentication data completed');
+    } catch (e) {
+      print('Error during cleanup: $e');
+    }
+  }
+
+  // Force complete initialization (for debugging)
+  void forceCompleteInitialization() {
+    print('Force completing initialization...');
+    _isInitialized = true;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Get current auth state for debugging
+  String getAuthStateDebug() {
+    return 'AuthProvider State:\n'
+        '- Initialized: $_isInitialized\n'
+        '- Loading: $_isLoading\n'
+        '- Has User: ${_currentUser != null}\n'
+        '- User Email: ${_currentUser?.email ?? 'null'}\n'
+        '- Firebase User: ${_firebaseAuth.currentUser?.email ?? 'null'}\n'
+        '- Error: ${_error ?? 'none'}\n'
+        '- Is Logged In: $isLoggedIn';
+  }
+
+  // Convert Firebase Auth error codes to user-friendly messages
+  String _getFirebaseErrorMessage(firebase_auth.FirebaseAuthException e) {
+    switch (e.code) {
+      case 'weak-password':
+        return 'Password is too weak. Please choose a stronger password.';
+      case 'email-already-in-use':
+        return 'An account with this email already exists.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Invalid password. Please try again.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      case 'operation-not-allowed':
+        return 'This operation is not allowed.';
+      case 'requires-recent-login':
+        return 'Please log in again to perform this action.';
+      default:
+        return e.message ?? 'An error occurred. Please try again.';
+    }
+  }
+
+  // Clear user data (for logout/cleanup)
+  Future<void> clearUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Remove any remaining old SharedPreferences data
+      final keys = prefs.getKeys();
+      for (final key in keys) {
+        if (key.startsWith('user_data_')) {
+          await prefs.remove(key);
+          print('Removed old user data key: $key');
+        }
+      }
+
+      print('User data cleared from local storage');
+    } catch (e) {
+      print('Error clearing user data: $e');
     }
   }
 }

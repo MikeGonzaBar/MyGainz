@@ -20,48 +20,52 @@ class RoutineLibraryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  routine.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    routine.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit),
+                      icon: const Icon(Icons.edit, size: 20),
                       onPressed: onEdit,
                       constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
+                      padding: const EdgeInsets.all(4),
                     ),
                     if (onDelete != null)
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete,
+                            color: Colors.red, size: 20),
                         onPressed: onDelete,
                         constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
+                        padding: const EdgeInsets.all(4),
                       ),
                   ],
                 ),
               ],
             ),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 4,
               children: routine.exerciseIds
-                  .map((id) => _buildExerciseTile(id))
+                  .map((id) => _buildExerciseTile(context, id))
                   .toList(),
             ),
           ],
@@ -70,7 +74,7 @@ class RoutineLibraryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildExerciseTile(String id) {
+  Widget _buildExerciseTile(BuildContext context, String id) {
     try {
       final exercise = availableExercises.firstWhere((e) => e.id == id);
       return ExerciseTile(exercise: exercise);
@@ -90,11 +94,10 @@ class RoutineLibraryCard extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               'Exercise not found',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.red.shade600,
-                fontStyle: FontStyle.italic,
-              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.red.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
             ),
           ],
         ),

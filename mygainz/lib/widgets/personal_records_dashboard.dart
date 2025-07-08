@@ -363,7 +363,7 @@ class PersonalRecordsDashboard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'No Personal Records Yet',
+                'No PRs yet...',
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 16,
@@ -372,7 +372,7 @@ class PersonalRecordsDashboard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Start logging your workouts to track your progress and celebrate your achievements!',
+                'Start logging and let\'s smash some records!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey.shade500,

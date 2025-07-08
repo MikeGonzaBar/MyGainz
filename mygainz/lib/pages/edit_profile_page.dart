@@ -193,13 +193,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Personal Information',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
               ),
               const SizedBox(height: 16),
               Card(
@@ -280,8 +279,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       Expanded(
                         child: Text(
                           'You have unsaved changes. Tap "Save" to confirm your updates.',
-                          style: TextStyle(
-                              color: Colors.blue.shade600, fontSize: 14),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.blue.shade600,
+                                  ),
                         ),
                       ),
                     ],

@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/personal_record.dart';
+import '../models/workout_set.dart';
 import '../services/personal_record_service.dart';
+import '../services/workout_firestore_service.dart';
 
 class LoggedExercise {
   final String id;
@@ -10,10 +10,13 @@ class LoggedExercise {
   final String exerciseName;
   final List<String> targetMuscles;
   final String equipment;
-  final int sets;
   final DateTime date;
 
-  // Strength-specific fields (nullable for cardio)
+  // Individual sets data (preferred)
+  final List<WorkoutSetData>? individualSets;
+
+  // Legacy aggregated data (for backward compatibility)
+  final int? sets;
   final double? weight;
   final int? reps;
 
@@ -31,10 +34,13 @@ class LoggedExercise {
     required this.exerciseName,
     required this.targetMuscles,
     required this.equipment,
-    required this.sets,
     required this.date,
+    this.individualSets,
+    // Legacy fields for backward compatibility
+    this.sets,
     this.weight,
     this.reps,
+    // Cardio fields
     this.distance,
     this.duration,
     this.pace,
@@ -43,6 +49,38 @@ class LoggedExercise {
     this.heartRate,
   });
 
+  // Computed properties for backward compatibility
+  int get totalSets => individualSets?.length ?? sets ?? 0;
+
+  double? get averageWeight {
+    if (individualSets != null && individualSets!.isNotEmpty) {
+      final totalWeight =
+          individualSets!.fold<double>(0, (sum, set) => sum + set.weight);
+      return totalWeight / individualSets!.length;
+    }
+    return weight;
+  }
+
+  int? get averageReps {
+    if (individualSets != null && individualSets!.isNotEmpty) {
+      final totalReps =
+          individualSets!.fold<int>(0, (sum, set) => sum + set.reps);
+      return (totalReps / individualSets!.length).round();
+    }
+    return reps;
+  }
+
+  // Helper to get the best set (highest weight × reps)
+  WorkoutSetData? get bestSet {
+    if (individualSets == null || individualSets!.isEmpty) return null;
+
+    return individualSets!.reduce((a, b) {
+      final aScore = a.weight * a.reps;
+      final bScore = b.weight * b.reps;
+      return aScore > bScore ? a : b;
+    });
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -50,10 +88,17 @@ class LoggedExercise {
       'exerciseName': exerciseName,
       'targetMuscles': targetMuscles,
       'equipment': equipment,
-      'sets': sets,
       'date': date.toIso8601String(),
+
+      // Individual sets (preferred)
+      'individualSets': individualSets?.map((set) => set.toJson()).toList(),
+
+      // Legacy fields (for backward compatibility)
+      'sets': sets,
       'weight': weight,
       'reps': reps,
+
+      // Cardio fields
       'distance': distance,
       'duration': duration?.inMinutes,
       'pace': pace,
@@ -64,16 +109,33 @@ class LoggedExercise {
   }
 
   factory LoggedExercise.fromJson(Map<String, dynamic> json) {
+    // Parse individual sets if available
+    List<WorkoutSetData>? individualSets;
+    if (json['individualSets'] != null) {
+      final setsData = json['individualSets'] as List;
+      individualSets = setsData
+          .map((setData) =>
+              WorkoutSetData.fromJson(setData as Map<String, dynamic>))
+          .toList();
+    }
+
     return LoggedExercise(
       id: json['id'],
       exerciseId: json['exerciseId'],
       exerciseName: json['exerciseName'],
       targetMuscles: List<String>.from(json['targetMuscles']),
       equipment: json['equipment'],
-      sets: json['sets'],
       date: DateTime.parse(json['date']),
+
+      // Individual sets
+      individualSets: individualSets,
+
+      // Legacy fields
+      sets: json['sets'],
       weight: json['weight']?.toDouble(),
       reps: json['reps'],
+
+      // Cardio fields
       distance: json['distance']?.toDouble(),
       duration:
           json['duration'] != null ? Duration(minutes: json['duration']) : null,
@@ -86,12 +148,14 @@ class LoggedExercise {
 
   // Helper method to determine if this is a cardio exercise
   bool get isCardio {
-    return weight == null && (distance != null || duration != null);
+    return weight == null &&
+        averageWeight == null &&
+        (distance != null || duration != null);
   }
 
   // Helper method to determine if this is a strength exercise
   bool get isStrength {
-    return weight != null && reps != null;
+    return averageWeight != null && averageReps != null;
   }
 }
 
@@ -148,6 +212,9 @@ class WorkoutProvider with ChangeNotifier {
   List<Achievement> _achievements = [];
   bool _isLoading = false;
 
+  final WorkoutFirestoreService _workoutFirestoreService =
+      WorkoutFirestoreService();
+
   List<LoggedExercise> get loggedExercises =>
       List.unmodifiable(_loggedExercises);
   List<LoggedRoutine> get loggedRoutines => List.unmodifiable(_loggedRoutines);
@@ -170,90 +237,51 @@ class WorkoutProvider with ChangeNotifier {
     return sorted.take(5).toList();
   }
 
-  static const String _exercisesKey = 'logged_exercises';
-  static const String _routinesKey = 'logged_routines';
-  static const String _personalRecordsKey = 'personal_records';
-  static const String _achievementsKey = 'achievements';
-
   WorkoutProvider() {
     _loadWorkouts();
   }
 
-  // Load workouts from SharedPreferences
+  // Load workouts from Firestore
   Future<void> _loadWorkouts() async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final prefs = await SharedPreferences.getInstance();
+      // Load data from Firestore in parallel
+      final futures = await Future.wait([
+        _workoutFirestoreService.getWorkoutSessions(),
+        _workoutFirestoreService.getRoutineSessions(),
+        _workoutFirestoreService.getPersonalRecords(),
+        _workoutFirestoreService.getAchievements(),
+      ]);
 
-      // Load exercises
-      final exercisesJson = prefs.getStringList(_exercisesKey) ?? [];
-      _loggedExercises = exercisesJson
-          .map((json) => LoggedExercise.fromJson(jsonDecode(json)))
-          .toList();
-
-      // Load routines
-      final routinesJson = prefs.getStringList(_routinesKey) ?? [];
-      _loggedRoutines = routinesJson
-          .map((json) => LoggedRoutine.fromJson(jsonDecode(json)))
-          .toList();
-
-      // Load personal records
-      final personalRecordsJson =
-          prefs.getStringList(_personalRecordsKey) ?? [];
-      _personalRecords = personalRecordsJson
-          .map((json) => PersonalRecord.fromJson(jsonDecode(json)))
-          .toList();
-
-      // Load achievements
-      final achievementsJson = prefs.getStringList(_achievementsKey) ?? [];
-      _achievements = achievementsJson
-          .map((json) => Achievement.fromJson(jsonDecode(json)))
-          .toList();
+      _loggedExercises = futures[0] as List<LoggedExercise>;
+      _loggedRoutines = futures[1] as List<LoggedRoutine>;
+      _personalRecords = futures[2] as List<PersonalRecord>;
+      _achievements = futures[3] as List<Achievement>;
 
       _isLoading = false;
       notifyListeners();
       print(
-          'Workouts loaded: ${_loggedExercises.length} exercises, ${_loggedRoutines.length} routines, ${_personalRecords.length} PRs, ${_achievements.length} achievements');
+          'Workouts loaded from Firestore: ${_loggedExercises.length} exercises, ${_loggedRoutines.length} routines, ${_personalRecords.length} PRs, ${_achievements.length} achievements');
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('Error loading workouts: $e');
+      print('Error loading workouts from Firestore: $e');
     }
   }
 
-  // Save workouts to SharedPreferences
-  Future<void> _saveWorkouts() async {
+  // Clear all workout logs (for testing/reset)
+  Future<void> clearAllWorkouts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Save exercises
-      final exercisesJson = _loggedExercises
-          .map((exercise) => jsonEncode(exercise.toJson()))
-          .toList();
-      await prefs.setStringList(_exercisesKey, exercisesJson);
-
-      // Save routines
-      final routinesJson = _loggedRoutines
-          .map((routine) => jsonEncode(routine.toJson()))
-          .toList();
-      await prefs.setStringList(_routinesKey, routinesJson);
-
-      // Save personal records
-      final personalRecordsJson =
-          _personalRecords.map((pr) => jsonEncode(pr.toJson())).toList();
-      await prefs.setStringList(_personalRecordsKey, personalRecordsJson);
-
-      // Save achievements
-      final achievementsJson = _achievements
-          .map((achievement) => jsonEncode(achievement.toJson()))
-          .toList();
-      await prefs.setStringList(_achievementsKey, achievementsJson);
-
-      print('Workouts saved successfully');
+      _loggedExercises.clear();
+      _loggedRoutines.clear();
+      _personalRecords.clear();
+      _achievements.clear();
+      notifyListeners();
+      print('All workout data cleared from local cache');
     } catch (e) {
-      print('Error saving workouts: $e');
+      print('Error clearing workout data: $e');
     }
   }
 
@@ -263,8 +291,10 @@ class WorkoutProvider with ChangeNotifier {
     required String exerciseName,
     required List<String> targetMuscles,
     required String equipment,
-    required int sets,
-    // Strength-specific parameters
+    // Individual sets data (preferred)
+    List<WorkoutSetData>? individualSets,
+    // Legacy parameters for backward compatibility
+    int? sets,
     double? weight,
     int? reps,
     // Cardio-specific parameters
@@ -281,10 +311,14 @@ class WorkoutProvider with ChangeNotifier {
       exerciseName: exerciseName,
       targetMuscles: targetMuscles,
       equipment: equipment,
-      sets: sets,
       date: DateTime.now(),
+      // Individual sets data
+      individualSets: individualSets,
+      // Legacy aggregated data
+      sets: sets,
       weight: weight,
       reps: reps,
+      // Cardio data
       distance: distance,
       duration: duration,
       pace: pace,
@@ -293,13 +327,42 @@ class WorkoutProvider with ChangeNotifier {
       heartRate: heartRate,
     );
 
-    _loggedExercises.add(loggedExercise);
+    try {
+      // Save to Firestore
+      final firestoreId =
+          await _workoutFirestoreService.logExerciseSession(loggedExercise);
 
-    // Check for new personal record
-    await _checkAndCreatePersonalRecord(loggedExercise);
+      // Update local list with Firestore ID
+      final updatedExercise = LoggedExercise(
+        id: firestoreId,
+        exerciseId: exerciseId,
+        exerciseName: exerciseName,
+        targetMuscles: targetMuscles,
+        equipment: equipment,
+        date: DateTime.now(),
+        individualSets: individualSets,
+        sets: sets,
+        weight: weight,
+        reps: reps,
+        distance: distance,
+        duration: duration,
+        pace: pace,
+        calories: calories,
+        speed: speed,
+        heartRate: heartRate,
+      );
 
-    await _saveWorkouts();
-    notifyListeners();
+      _loggedExercises.add(updatedExercise);
+
+      // Check for new personal record
+      await _checkAndCreatePersonalRecord(updatedExercise);
+
+      notifyListeners();
+      print('Exercise logged to Firestore: $exerciseName');
+    } catch (e) {
+      print('Error logging exercise to Firestore: $e');
+      throw Exception('Failed to log exercise: $e');
+    }
   }
 
   // Log a routine workout
@@ -320,17 +383,29 @@ class WorkoutProvider with ChangeNotifier {
       orderIsRequired: orderIsRequired,
     );
 
-    _loggedRoutines.add(loggedRoutine);
-    await _saveWorkouts();
-    notifyListeners();
-  }
+    try {
+      // Save to Firestore
+      final firestoreId =
+          await _workoutFirestoreService.logRoutineSession(loggedRoutine);
 
-  // Clear all workout logs
-  Future<void> clearAllWorkouts() async {
-    _loggedExercises.clear();
-    _loggedRoutines.clear();
-    await _saveWorkouts();
-    notifyListeners();
+      // Update local list with Firestore ID
+      final updatedRoutine = LoggedRoutine(
+        id: firestoreId,
+        routineId: routineId,
+        name: routineName,
+        targetMuscles: targetMuscles,
+        date: DateTime.now(),
+        exercises: exercises,
+        orderIsRequired: orderIsRequired,
+      );
+
+      _loggedRoutines.add(updatedRoutine);
+      notifyListeners();
+      print('Routine logged to Firestore: $routineName');
+    } catch (e) {
+      print('Error logging routine to Firestore: $e');
+      throw Exception('Failed to log routine: $e');
+    }
   }
 
   // Update a logged exercise
@@ -350,29 +425,59 @@ class WorkoutProvider with ChangeNotifier {
     final index = _loggedExercises.indexWhere((ex) => ex.id == exerciseId);
     if (index != -1) {
       final exercise = _loggedExercises[index];
-      _loggedExercises[index] = LoggedExercise(
+
+      // If updating strength exercise with new values, clear individual sets
+      // and use legacy format (since we're editing to average values)
+      List<WorkoutSetData>? updatedIndividualSets = exercise.individualSets;
+      double? updatedWeight = weight ?? exercise.weight;
+      int? updatedReps = reps ?? exercise.reps;
+      int? updatedSets = sets ?? exercise.sets;
+
+      // If we're providing new weight/reps, convert to legacy format
+      if (weight != null || reps != null || sets != null) {
+        updatedIndividualSets = null; // Clear individual sets
+        updatedWeight = weight ?? exercise.averageWeight;
+        updatedReps = reps ?? exercise.averageReps;
+        updatedSets = sets ?? exercise.totalSets;
+      }
+
+      final updatedExercise = LoggedExercise(
         id: exercise.id,
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.exerciseName,
         targetMuscles: exercise.targetMuscles,
         date: exercise.date,
+        // Individual sets (may be cleared if editing)
+        individualSets: updatedIndividualSets,
         // Common
         equipment: equipment ?? exercise.equipment,
-        sets: sets ?? exercise.sets,
-        // Strength-specific (keep if not provided)
-        weight: weight ?? exercise.weight,
-        reps: reps ?? exercise.reps,
-        // Cardio-specific (keep if not provided)
+        sets: updatedSets,
+        // Strength-specific
+        weight: updatedWeight,
+        reps: updatedReps,
+        // Cardio-specific
         distance: distance ?? exercise.distance,
         duration: duration ?? exercise.duration,
         calories: calories ?? exercise.calories,
-        // Preserve other fields that are not editable for now
+        // Preserve other fields
         pace: exercise.pace,
         speed: exercise.speed,
         heartRate: exercise.heartRate,
       );
-      await _saveWorkouts();
-      notifyListeners();
+
+      try {
+        // Update in Firestore
+        await _workoutFirestoreService.updateExerciseSession(
+            exerciseId, updatedExercise);
+
+        // Update local list
+        _loggedExercises[index] = updatedExercise;
+        notifyListeners();
+        print('Exercise updated in Firestore: ${updatedExercise.exerciseName}');
+      } catch (e) {
+        print('Error updating exercise in Firestore: $e');
+        throw Exception('Failed to update exercise: $e');
+      }
     }
   }
 
@@ -417,7 +522,6 @@ class WorkoutProvider with ChangeNotifier {
           orderIsRequired: routine.orderIsRequired,
         );
 
-        await _saveWorkouts();
         notifyListeners();
       }
     }
@@ -425,16 +529,34 @@ class WorkoutProvider with ChangeNotifier {
 
   // Delete a logged exercise
   Future<void> deleteLoggedExercise(String exerciseId) async {
-    _loggedExercises.removeWhere((ex) => ex.id == exerciseId);
-    await _saveWorkouts();
-    notifyListeners();
+    try {
+      // Delete from Firestore
+      await _workoutFirestoreService.deleteExerciseSession(exerciseId);
+
+      // Delete from local list
+      _loggedExercises.removeWhere((ex) => ex.id == exerciseId);
+      notifyListeners();
+      print('Exercise deleted from Firestore: $exerciseId');
+    } catch (e) {
+      print('Error deleting exercise from Firestore: $e');
+      throw Exception('Failed to delete exercise: $e');
+    }
   }
 
   // Delete a logged routine
   Future<void> deleteLoggedRoutine(String routineId) async {
-    _loggedRoutines.removeWhere((r) => r.id == routineId);
-    await _saveWorkouts();
-    notifyListeners();
+    try {
+      // Delete from Firestore
+      await _workoutFirestoreService.deleteRoutineSession(routineId);
+
+      // Delete from local list
+      _loggedRoutines.removeWhere((r) => r.id == routineId);
+      notifyListeners();
+      print('Routine deleted from Firestore: $routineId');
+    } catch (e) {
+      print('Error deleting routine from Firestore: $e');
+      throw Exception('Failed to delete routine: $e');
+    }
   }
 
   // Delete an exercise from a logged routine
@@ -466,7 +588,6 @@ class WorkoutProvider with ChangeNotifier {
           );
         }
 
-        await _saveWorkouts();
         notifyListeners();
       }
     }
@@ -498,7 +619,6 @@ class WorkoutProvider with ChangeNotifier {
           );
         }
 
-        await _saveWorkouts();
         notifyListeners();
       }
     }
@@ -508,12 +628,26 @@ class WorkoutProvider with ChangeNotifier {
   Future<void> _checkAndCreatePersonalRecord(LoggedExercise exercise) async {
     // Handle strength exercises
     if (exercise.isStrength &&
-        exercise.weight != null &&
-        exercise.reps != null) {
+        exercise.averageWeight != null &&
+        exercise.averageReps != null) {
+      // For exercises with individual sets, check for PRs using the best set
+      double weightForPR = exercise.averageWeight!;
+      int repsForPR = exercise.averageReps!;
+
+      // If we have individual sets, use the best set for PR calculation
+      if (exercise.individualSets != null &&
+          exercise.individualSets!.isNotEmpty) {
+        final bestSet = exercise.bestSet;
+        if (bestSet != null) {
+          weightForPR = bestSet.weight;
+          repsForPR = bestSet.reps;
+        }
+      }
+
       if (PersonalRecordService.isNewPersonalRecord(
           exercise, _personalRecords)) {
-        final oneRepMax = PersonalRecordService.calculateOneRepMax(
-            exercise.weight!, exercise.reps!);
+        final oneRepMax =
+            PersonalRecordService.calculateOneRepMax(weightForPR, repsForPR);
 
         final personalRecord = PersonalRecord(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -522,19 +656,41 @@ class WorkoutProvider with ChangeNotifier {
           date: exercise.date,
           equipment: exercise.equipment,
           type: PersonalRecordType.weight,
-          weight: exercise.weight,
-          reps: exercise.reps,
-          sets: exercise.sets,
+          weight: weightForPR,
+          reps: repsForPR,
+          sets: exercise.totalSets,
           oneRepMax: oneRepMax,
         );
 
-        _personalRecords.add(personalRecord);
+        try {
+          // Save to Firestore
+          final firestoreId =
+              await _workoutFirestoreService.savePersonalRecord(personalRecord);
 
-        // Generate new achievements
-        await _generateAchievements();
+          // Update local list with Firestore ID
+          final updatedRecord = PersonalRecord(
+            id: firestoreId,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            date: exercise.date,
+            equipment: exercise.equipment,
+            type: PersonalRecordType.weight,
+            weight: weightForPR,
+            reps: repsForPR,
+            sets: exercise.totalSets,
+            oneRepMax: oneRepMax,
+          );
 
-        print(
-            'New strength PR created: ${exercise.exerciseName} - ${exercise.weight}kg × ${exercise.reps} reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
+          _personalRecords.add(updatedRecord);
+
+          // Generate new achievements
+          await _generateAchievements();
+
+          print(
+              'New strength PR created: ${exercise.exerciseName} - ${weightForPR}kg × ${repsForPR} reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
+        } catch (e) {
+          print('Error saving personal record to Firestore: $e');
+        }
       }
     }
 
@@ -659,8 +815,27 @@ class WorkoutProvider with ChangeNotifier {
       // Check if achievement already exists
       final exists = _achievements.any((a) => a.id == achievement.id);
       if (!exists) {
-        _achievements.add(achievement);
-        print('New achievement unlocked: ${achievement.title}');
+        try {
+          // Save to Firestore
+          final firestoreId =
+              await _workoutFirestoreService.saveAchievement(achievement);
+
+          // Update local list with Firestore ID
+          final updatedAchievement = Achievement(
+            id: firestoreId,
+            title: achievement.title,
+            description: achievement.description,
+            achievedDate: achievement.achievedDate,
+            type: achievement.type,
+            exerciseName: achievement.exerciseName,
+            value: achievement.value,
+          );
+
+          _achievements.add(updatedAchievement);
+          print('New achievement unlocked: ${achievement.title}');
+        } catch (e) {
+          print('Error saving achievement to Firestore: $e');
+        }
       }
     }
   }
@@ -692,5 +867,55 @@ class WorkoutProvider with ChangeNotifier {
         .where((a) => a.achievedDate.isAfter(cutoffDate))
         .toList()
       ..sort((a, b) => b.achievedDate.compareTo(a.achievedDate));
+  }
+
+  // Update a logged exercise with individual sets
+  Future<void> updateLoggedExerciseWithSets(
+    String exerciseId, {
+    required List<WorkoutSetData> individualSets,
+    String? equipment,
+  }) async {
+    final index = _loggedExercises.indexWhere((ex) => ex.id == exerciseId);
+    if (index != -1) {
+      final exercise = _loggedExercises[index];
+
+      final updatedExercise = LoggedExercise(
+        id: exercise.id,
+        exerciseId: exercise.exerciseId,
+        exerciseName: exercise.exerciseName,
+        targetMuscles: exercise.targetMuscles,
+        date: exercise.date,
+        // Set new individual sets
+        individualSets: individualSets,
+        // Clear legacy fields since we're using individual sets
+        sets: null,
+        weight: null,
+        reps: null,
+        // Common
+        equipment: equipment ?? exercise.equipment,
+        // Cardio-specific (preserve)
+        distance: exercise.distance,
+        duration: exercise.duration,
+        calories: exercise.calories,
+        pace: exercise.pace,
+        speed: exercise.speed,
+        heartRate: exercise.heartRate,
+      );
+
+      try {
+        // Update in Firestore
+        await _workoutFirestoreService.updateExerciseSession(
+            exerciseId, updatedExercise);
+
+        // Update local list
+        _loggedExercises[index] = updatedExercise;
+        notifyListeners();
+        print(
+            'Exercise individual sets updated in Firestore: ${updatedExercise.exerciseName}');
+      } catch (e) {
+        print('Error updating exercise individual sets in Firestore: $e');
+        throw Exception('Failed to update exercise individual sets: $e');
+      }
+    }
   }
 }

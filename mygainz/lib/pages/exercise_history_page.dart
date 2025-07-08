@@ -39,7 +39,7 @@ class ExerciseHistoryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No exercises logged yet',
+                    'Nothing recent here... Time to break a sweat!',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey.shade600,

@@ -39,7 +39,7 @@ class RoutineHistoryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No routines completed yet',
+                    'No routines wrapped up... Let\'s finish strong!',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey.shade600,

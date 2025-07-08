@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/units_provider.dart';
 import '../providers/workout_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/workout_firestore_service.dart';
 import '../models/exercise.dart';
 import '../models/routine.dart';
 import '../models/workout_set.dart';
@@ -45,196 +47,20 @@ class _LogPageState extends State<LogPage> {
     'Machine',
   ];
 
-  // Available exercises to resolve exercise IDs
-  final List<Exercise> availableExercises = [
-    // Strength exercises
-    Exercise(
-      id: '1',
-      userId: 'user1',
-      exerciseName: 'Bench Press',
-      targetMuscles: ['Chest', 'Triceps'],
-      equipment: ['Barbell', 'Dumbbell', 'Machine'],
-    ),
-    Exercise(
-      id: '2',
-      userId: 'user1',
-      exerciseName: 'Pull-ups',
-      targetMuscles: ['Back', 'Biceps'],
-      equipment: ['Pull-up bar'],
-    ),
-    Exercise(
-      id: '5',
-      userId: 'user1',
-      exerciseName: 'Rows',
-      targetMuscles: ['Back'],
-      equipment: ['Barbell'],
-    ),
-    Exercise(
-      id: '6',
-      userId: 'user1',
-      exerciseName: 'Katana',
-      targetMuscles: ['Back', 'Shoulders'],
-      equipment: ['Cable'],
-    ),
-    Exercise(
-      id: '7',
-      userId: 'user1',
-      exerciseName: 'Skull crusher',
-      targetMuscles: ['Triceps'],
-      equipment: ['Dumbbell'],
-    ),
-    Exercise(
-      id: '8',
-      userId: 'user1',
-      exerciseName: 'Shoulder Press',
-      targetMuscles: ['Shoulders'],
-      equipment: ['Dumbbell'],
-    ),
-    Exercise(
-      id: '9',
-      userId: 'user1',
-      exerciseName: 'Squats',
-      targetMuscles: ['Quads', 'Hamstrings', 'Glutes'],
-      equipment: ['Barbell', 'Dumbbell'],
-    ),
-    Exercise(
-      id: '10',
-      userId: 'user1',
-      exerciseName: 'Deadlift',
-      targetMuscles: ['Back', 'Hamstrings', 'Glutes'],
-      equipment: ['Barbell'],
-    ),
-    Exercise(
-      id: '11',
-      userId: 'user1',
-      exerciseName: 'Bicep Curls',
-      targetMuscles: ['Biceps'],
-      equipment: ['Dumbbell', 'Barbell'],
-    ),
-    Exercise(
-      id: '12',
-      userId: 'user1',
-      exerciseName: 'Overhead Press',
-      targetMuscles: ['Shoulders', 'Triceps'],
-      equipment: ['Barbell', 'Dumbbell'],
-    ),
+  // Data loaded from Firestore
+  List<Exercise> availableExercises = [];
+  List<Routine> availableRoutines = [];
+  bool _isLoading = true;
 
-    // Cardio exercises
-    Exercise(
-      id: 'cardio_1',
-      userId: 'user1',
-      exerciseName: 'Running',
-      targetMuscles: ['Cardiovascular', 'Legs', 'Core'],
-      equipment: ['Treadmill', 'Outdoor', 'Track'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: 'cardio_2',
-      userId: 'user1',
-      exerciseName: 'Swimming',
-      targetMuscles: ['Cardiovascular', 'Back', 'Shoulders', 'Arms', 'Core'],
-      equipment: ['Pool', 'Open Water'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: 'cardio_3',
-      userId: 'user1',
-      exerciseName: 'Cycling',
-      targetMuscles: ['Cardiovascular', 'Quads', 'Hamstrings', 'Calves'],
-      equipment: ['Stationary Bike', 'Road Bike', 'Mountain Bike', 'Spin Bike'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: 'cardio_4',
-      userId: 'user1',
-      exerciseName: 'Stair Master',
-      targetMuscles: ['Cardiovascular', 'Quads', 'Glutes', 'Calves'],
-      equipment: ['Stair Master', 'Stepper'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: false,
-        hasDuration: true,
-        hasPace: false,
-        hasCalories: true,
-        primaryMetric: 'duration',
-      ),
-    ),
-    Exercise(
-      id: 'cardio_5',
-      userId: 'user1',
-      exerciseName: 'Rowing',
-      targetMuscles: ['Cardiovascular', 'Back', 'Arms', 'Core', 'Legs'],
-      equipment: ['Rowing Machine', 'Water'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: 'cardio_6',
-      userId: 'user1',
-      exerciseName: 'Elliptical',
-      targetMuscles: ['Cardiovascular', 'Quads', 'Glutes', 'Calves'],
-      equipment: ['Elliptical'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'duration',
-      ),
-    ),
-  ];
-
-  // Dummy routines data
-  final List<Routine> availableRoutines = [
-    Routine(
-      id: '1',
-      userId: 'user1',
-      name: 'Back / Tricep',
-      orderIsRequired: false,
-      exerciseIds: ['2', '5', '6', '7'],
-    ),
-    Routine(
-      id: '2',
-      userId: 'user1',
-      name: 'Chest / Shoulders',
-      orderIsRequired: true,
-      exerciseIds: ['1', '8'],
-    ),
-  ];
+  final WorkoutFirestoreService _workoutFirestoreService =
+      WorkoutFirestoreService();
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _searchFocusNode.addListener(_onFocusChanged);
+    _loadUserData();
   }
 
   @override
@@ -310,25 +136,56 @@ class _LogPageState extends State<LogPage> {
     _searchFocusNode.unfocus();
   }
 
-  void _createNewExercise() {
+  void _createNewExercise() async {
     final exerciseName = _searchController.text.trim();
     if (exerciseName.isEmpty) return;
 
-    // Create a new exercise on-the-fly
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Create a new exercise and save to Firestore
     final newExercise = Exercise(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: 'user1',
+      id: '', // Will be set by Firestore
+      userId: authProvider.currentUser?.email ?? '',
       exerciseName: exerciseName,
       targetMuscles: ['General'], // Default muscle group
       equipment: [selectedEquipment],
     );
 
-    setState(() {
-      selectedExercise = newExercise;
-      availableExercises.add(newExercise); // Add to available exercises
-      showSuggestions = false;
-    });
-    _searchFocusNode.unfocus();
+    try {
+      // Save to Firestore
+      final firestoreId =
+          await _workoutFirestoreService.saveExercise(newExercise);
+
+      // Update local list with Firestore ID
+      final savedExercise = Exercise(
+        id: firestoreId,
+        userId: authProvider.currentUser?.email ?? '',
+        exerciseName: exerciseName,
+        targetMuscles: ['General'],
+        equipment: [selectedEquipment],
+      );
+
+      setState(() {
+        selectedExercise = savedExercise;
+        availableExercises.add(savedExercise); // Add to available exercises
+        showSuggestions = false;
+      });
+
+      _searchFocusNode.unfocus();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Exercise "$exerciseName" created and selected!')),
+      );
+    } catch (e) {
+      print('Error saving new exercise: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating exercise: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _addSet() {
@@ -354,11 +211,13 @@ class _LogPageState extends State<LogPage> {
       return;
     }
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     // Use selected exercise or create new one
     Exercise exerciseToLog = selectedExercise ??
         Exercise(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          userId: 'user1',
+          userId: authProvider.currentUser?.email ?? '',
           exerciseName: _searchController.text.trim(),
           targetMuscles: ['General'],
           equipment: [selectedEquipment],
@@ -392,23 +251,17 @@ class _LogPageState extends State<LogPage> {
         calories: calories,
       );
     } else {
-      // Handle strength exercise logging
-      double totalWeight = 0;
-      int totalReps = 0;
-      int validSets = 0;
+      // Handle strength exercise logging with individual sets
+      List<WorkoutSetData> individualSets = [];
 
-      for (var set in sets) {
-        final weight = double.tryParse(set.weightController.text);
-        final reps = int.tryParse(set.repsController.text);
-
-        if (weight != null && reps != null && weight > 0 && reps > 0) {
-          totalWeight += weight;
-          totalReps += reps;
-          validSets++;
+      for (int i = 0; i < sets.length; i++) {
+        final setData = WorkoutSetData.fromWorkoutSet(sets[i], i + 1);
+        if (setData != null) {
+          individualSets.add(setData);
         }
       }
 
-      if (validSets == 0) {
+      if (individualSets.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
@@ -417,17 +270,12 @@ class _LogPageState extends State<LogPage> {
         return;
       }
 
-      final avgWeight = totalWeight / validSets;
-      final avgReps = (totalReps / validSets).round();
-
       await workoutProvider.logExercise(
         exerciseId: exerciseToLog.id,
         exerciseName: exerciseToLog.exerciseName,
         targetMuscles: exerciseToLog.targetMuscles,
-        weight: avgWeight,
-        reps: avgReps,
         equipment: selectedEquipment,
-        sets: validSets,
+        individualSets: individualSets,
       );
     }
 
@@ -517,36 +365,25 @@ class _LogPageState extends State<LogPage> {
       final exercise = _getExerciseById(exerciseId);
       final exerciseSets = routineExerciseSets[exerciseId] ?? [];
 
-      // Calculate averages for this exercise
-      double totalWeight = 0;
-      int totalReps = 0;
-      int validSets = 0;
+      // Collect individual sets for this exercise
+      List<WorkoutSetData> individualSets = [];
 
-      for (var set in exerciseSets) {
-        final weight = double.tryParse(set.weightController.text);
-        final reps = int.tryParse(set.repsController.text);
-
-        if (weight != null && reps != null && weight > 0 && reps > 0) {
-          totalWeight += weight;
-          totalReps += reps;
-          validSets++;
+      for (int i = 0; i < exerciseSets.length; i++) {
+        final setData = WorkoutSetData.fromWorkoutSet(exerciseSets[i], i + 1);
+        if (setData != null) {
+          individualSets.add(setData);
         }
       }
 
-      if (validSets > 0) {
-        final avgWeight = totalWeight / validSets;
-        final avgReps = (totalReps / validSets).round();
-
+      if (individualSets.isNotEmpty) {
         loggedExercises.add(LoggedExercise(
           id: DateTime.now().millisecondsSinceEpoch.toString() + exerciseId,
           exerciseId: exerciseId,
           exerciseName: exercise.exerciseName,
           targetMuscles: exercise.targetMuscles,
-          weight: avgWeight,
-          reps: avgReps,
           equipment: routineExerciseEquipment[exerciseId] ?? 'Unknown',
-          sets: validSets,
           date: DateTime.now(),
+          individualSets: individualSets,
         ));
       }
     }
@@ -593,13 +430,15 @@ class _LogPageState extends State<LogPage> {
       return null;
     }
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     for (String exerciseId in selectedRoutine!.exerciseIds) {
       if (!completedExercises.contains(exerciseId)) {
         return availableExercises.firstWhere(
           (ex) => ex.id == exerciseId,
           orElse: () => Exercise(
             id: exerciseId,
-            userId: 'user1',
+            userId: authProvider.currentUser?.email ?? '',
             exerciseName: 'Unknown Exercise',
             targetMuscles: ['Unknown'],
             equipment: ['Barbell'],
@@ -611,11 +450,13 @@ class _LogPageState extends State<LogPage> {
   }
 
   Exercise _getExerciseById(String exerciseId) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     return availableExercises.firstWhere(
       (ex) => ex.id == exerciseId,
       orElse: () => Exercise(
         id: exerciseId,
-        userId: 'user1',
+        userId: authProvider.currentUser?.email ?? '',
         exerciseName: 'Unknown Exercise',
         targetMuscles: ['Unknown'],
         equipment: ['Barbell'],
@@ -623,8 +464,50 @@ class _LogPageState extends State<LogPage> {
     );
   }
 
+  // Load user's exercises and routines from Firestore
+  Future<void> _loadUserData() async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Load exercises and routines in parallel
+      final results = await Future.wait([
+        _workoutFirestoreService.getUserExercises(),
+        _workoutFirestoreService.getUserRoutines(),
+      ]);
+
+      setState(() {
+        availableExercises = results[0] as List<Exercise>;
+        availableRoutines = results[1] as List<Routine>;
+        _isLoading = false;
+      });
+
+      print(
+          'Loaded ${availableExercises.length} exercises and ${availableRoutines.length} routines for logging');
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print('Error loading user data for logging: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF9FAFB),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1211,12 +1094,47 @@ class _LogPageState extends State<LogPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 16),
-        ...availableRoutines.map((routine) => RoutineSelectionCard(
-              routine: routine,
-              availableExercises: availableExercises,
-              onTap: () => _selectRoutine(routine),
-            )),
-        const SizedBox(height: 16),
+        if (availableRoutines.isEmpty) ...[
+          // Empty state for routines
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.list_alt,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No routines available',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create your first routine to get started!',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ] else ...[
+          ...availableRoutines.map((routine) => RoutineSelectionCard(
+                routine: routine,
+                availableExercises: availableExercises,
+                onTap: () => _selectRoutine(routine),
+              )),
+          const SizedBox(height: 16),
+        ],
         _buildCreateNewRoutineCard(),
       ],
     );
@@ -1364,7 +1282,7 @@ class _LogPageState extends State<LogPage> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameController.text.trim().isEmpty ||
                         selectedExerciseIds.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1375,28 +1293,54 @@ class _LogPageState extends State<LogPage> {
                       return;
                     }
 
-                    // Create new routine with order requirement
+                    final authProvider =
+                        Provider.of<AuthProvider>(context, listen: false);
+
+                    // Create new routine and save to Firestore
                     final newRoutine = Routine(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      userId: 'user1', // Would use actual user ID
+                      id: '', // Will be set by Firestore
+                      userId: authProvider.currentUser?.email ?? '',
                       name: nameController.text.trim(),
-                      orderIsRequired: orderIsRequired, // Use the switch value
+                      orderIsRequired: orderIsRequired,
                       exerciseIds: selectedExerciseIds,
                     );
 
-                    setState(() {
-                      availableRoutines.add(newRoutine);
-                    });
+                    try {
+                      // Save to Firestore
+                      final firestoreId = await _workoutFirestoreService
+                          .saveRoutine(newRoutine);
 
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Routine "${newRoutine.name}" created successfully! '
-                          '${orderIsRequired ? "(Order required)" : "(Flexible order)"}',
+                      // Update local list with Firestore ID
+                      final savedRoutine = Routine(
+                        id: firestoreId,
+                        userId: authProvider.currentUser?.email ?? '',
+                        name: nameController.text.trim(),
+                        orderIsRequired: orderIsRequired,
+                        exerciseIds: selectedExerciseIds,
+                      );
+
+                      setState(() {
+                        availableRoutines.add(savedRoutine);
+                      });
+
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Routine "${savedRoutine.name}" created successfully! '
+                            '${orderIsRequired ? "(Order required)" : "(Flexible order)"}',
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } catch (e) {
+                      print('Error saving new routine: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error creating routine: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                   child: const Text('Create'),
                 ),

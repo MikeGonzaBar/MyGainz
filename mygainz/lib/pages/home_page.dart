@@ -46,7 +46,7 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionHeader('Overview'),
+                _buildSectionHeader(context, 'Overview'),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -87,20 +87,19 @@ class HomePage extends StatelessWidget {
             if (currentUser != null) ...[
               Text(
                 'Welcome back, ${currentUser.name}!',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Manrope',
-                ),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Manrope',
+                    ),
               ),
               const SizedBox(height: 20),
             ],
 
             // Recent Exercises Section
-            _buildSectionHeader('Recent exercises'),
+            _buildSectionHeader(context, 'Recent exercises'),
             if (recentExercises.isEmpty)
               _buildEmptyState(
-                  'No exercises logged yet. Start by logging your first workout!')
+                  context, 'Nothing recent here... Time to break a sweat!')
             else ...[
               ...recentExercises
                   .map((exercise) => ExerciseCard(exercise: exercise)),
@@ -120,10 +119,10 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Recent Routines Section
-            _buildSectionHeader('Recent Routines'),
+            _buildSectionHeader(context, 'Recent Routines'),
             if (recentRoutines.isEmpty)
               _buildEmptyState(
-                  'No routines completed yet. Try completing a routine!')
+                  context, 'No routines wrapped up... Let\'s finish strong!')
             else ...[
               ...recentRoutines.map((routine) => RoutineCard(routine: routine)),
               const SizedBox(height: 8),
@@ -144,7 +143,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -152,18 +151,17 @@ class HomePage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'Manrope',
-            ),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Manrope',
+                ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(BuildContext context, String message) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.grey.shade50,
@@ -181,10 +179,9 @@ class HomePage extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 16,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
               ),
             ],
           ),

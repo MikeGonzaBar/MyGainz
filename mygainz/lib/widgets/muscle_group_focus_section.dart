@@ -56,7 +56,7 @@ class MuscleGroupFocusSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'No workout data yet',
+                  'Focus area unknown...',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -65,7 +65,7 @@ class MuscleGroupFocusSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Start logging exercises to see your muscle group focus!',
+                  'Start lifting and we\'ll show you the way!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,

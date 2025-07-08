@@ -338,7 +338,7 @@ class _ProgressPageState extends State<ProgressPage> {
           child: filteredExercises.isEmpty
               ? const Center(
                   child: Text(
-                    'No exercise data available\nStart logging workouts to see progress!',
+                    'Muscles waiting on data...',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
@@ -519,7 +519,7 @@ class _ProgressPageState extends State<ProgressPage> {
           child: filteredExercises.isEmpty
               ? const Center(
                   child: Text(
-                    'No exercise data available\nStart logging workouts to see trends!',
+                    'Equipment trends incoming...',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/exercise.dart';
 import '../models/routine.dart';
+import '../providers/auth_provider.dart';
+import '../services/workout_firestore_service.dart';
 import '../widgets/category_filter.dart';
 import '../widgets/exercise_library_card.dart';
 import '../widgets/routine_library_card.dart';
@@ -19,128 +22,19 @@ class _ExercisePageState extends State<ExercisePage>
   late TabController _tabController;
   String _selectedCategory = 'All';
 
-  // Dummy data for exercises
-  final List<Exercise> _exercises = [
-    Exercise(
-      id: '1',
-      userId: 'user1',
-      exerciseName: 'Bench Press',
-      targetMuscles: ['Chest', 'Triceps'],
-      equipment: ['Barbell', 'Dumbbell'],
-    ),
-    Exercise(
-      id: '2',
-      userId: 'user1',
-      exerciseName: 'Squats',
-      targetMuscles: ['Quads', 'Glutes'],
-      equipment: ['Barbell', 'Dumbbell'],
-    ),
-    Exercise(
-      id: '3',
-      userId: 'user1',
-      exerciseName: 'Deadlift',
-      targetMuscles: ['Back', 'Hamstrings'],
-      equipment: ['Barbell'],
-    ),
-    Exercise(
-      id: '4',
-      userId: 'user1',
-      exerciseName: 'Pull-ups',
-      targetMuscles: ['Back', 'Biceps'],
-      equipment: ['Bodyweight'],
-    ),
-    Exercise(
-      id: '5',
-      userId: 'user1',
-      exerciseName: 'Overhead Press',
-      targetMuscles: ['Shoulders', 'Triceps'],
-      equipment: ['Barbell', 'Dumbbell'],
-    ),
-    Exercise(
-      id: '6',
-      userId: 'user1',
-      exerciseName: 'Bicep Curls',
-      targetMuscles: ['Biceps'],
-      equipment: ['Dumbbell', 'Barbell'],
-    ),
-    Exercise(
-      id: '7',
-      userId: 'user1',
-      exerciseName: 'Running',
-      targetMuscles: ['Legs', 'Core'],
-      equipment: ['None'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: '8',
-      userId: 'user1',
-      exerciseName: 'Cycling',
-      targetMuscles: ['Legs', 'Glutes'],
-      equipment: ['Machine'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: true,
-        hasCalories: true,
-        primaryMetric: 'distance',
-      ),
-    ),
-    Exercise(
-      id: '9',
-      userId: 'user1',
-      exerciseName: 'Swimming',
-      targetMuscles: ['Full Body', 'Back', 'Shoulders'],
-      equipment: ['None'],
-      exerciseType: ExerciseType.cardio,
-      cardioMetrics: CardioMetrics(
-        hasDistance: true,
-        hasDuration: true,
-        hasPace: false,
-        hasCalories: true,
-        primaryMetric: 'duration',
-      ),
-    ),
-  ];
+  // Lists will be loaded from Firestore
+  List<Exercise> _exercises = [];
+  List<Routine> _routines = [];
+  bool _isLoading = true;
 
-  // Dummy data for routines
-  final List<Routine> _routines = [
-    Routine(
-      id: '1',
-      userId: 'user1',
-      name: 'Upper Body',
-      orderIsRequired: false,
-      exerciseIds: [
-        '1',
-        '4',
-        '5',
-        '6'
-      ], // Bench Press, Pull-ups, Overhead Press, Bicep Curls
-    ),
-    Routine(
-      id: '2',
-      userId: 'user1',
-      name: 'Lower Body',
-      orderIsRequired: true,
-      exerciseIds: ['2', '3'], // Squats, Deadlift
-    ),
-  ];
+  final WorkoutFirestoreService _workoutFirestoreService =
+      WorkoutFirestoreService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // Clean up any orphaned routines on initialization
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cleanupOrphanedRoutines();
-    });
+    _loadExercisesAndRoutines();
   }
 
   List<Exercise> get filteredExercises {
@@ -169,35 +63,97 @@ class _ExercisePageState extends State<ExercisePage>
     super.dispose();
   }
 
+  // Load exercises and routines from Firestore
+  Future<void> _loadExercisesAndRoutines() async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Load exercises and routines in parallel
+      final results = await Future.wait([
+        _workoutFirestoreService.getUserExercises(),
+        _workoutFirestoreService.getUserRoutines(),
+      ]);
+
+      setState(() {
+        _exercises = results[0] as List<Exercise>;
+        _routines = results[1] as List<Routine>;
+        _isLoading = false;
+      });
+
+      print(
+          'Loaded ${_exercises.length} exercises and ${_routines.length} routines from Firestore');
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print('Error loading exercises and routines: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _navigateToAddExercise(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ExerciseFormPage(
           isEditing: false,
-          onSave: (exerciseData) {
-            // Handle saving the new exercise
-            final newExercise = Exercise(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              userId: 'user1', // Would use actual user ID in real app
-              exerciseName: exerciseData['exerciseName'] as String,
-              targetMuscles:
-                  List<String>.from(exerciseData['targetMuscles'] as List),
-              equipment: List<String>.from(exerciseData['equipment'] as List),
-              exerciseType: exerciseData['exerciseType'] as ExerciseType,
-              cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
-            );
+          onSave: (exerciseData) async {
+            try {
+              // Create exercise with current user ID
+              final newExercise = Exercise(
+                id: '', // Will be set by Firestore
+                userId: authProvider.currentUser?.email ?? '',
+                exerciseName: exerciseData['exerciseName'] as String,
+                targetMuscles:
+                    List<String>.from(exerciseData['targetMuscles'] as List),
+                equipment: List<String>.from(exerciseData['equipment'] as List),
+                exerciseType: exerciseData['exerciseType'] as ExerciseType,
+                cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
+              );
 
-            setState(() {
-              _exercises.add(newExercise);
-            });
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Exercise "${newExercise.exerciseName}" added successfully!'),
-              ),
-            );
+              // Save to Firestore
+              final firestoreId =
+                  await _workoutFirestoreService.saveExercise(newExercise);
+
+              // Update local list with Firestore ID
+              final savedExercise = Exercise(
+                id: firestoreId,
+                userId: authProvider.currentUser?.email ?? '',
+                exerciseName: exerciseData['exerciseName'] as String,
+                targetMuscles:
+                    List<String>.from(exerciseData['targetMuscles'] as List),
+                equipment: List<String>.from(exerciseData['equipment'] as List),
+                exerciseType: exerciseData['exerciseType'] as ExerciseType,
+                cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
+              );
+
+              setState(() {
+                _exercises.add(savedExercise);
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Exercise "${savedExercise.exerciseName}" added successfully!'),
+                ),
+              );
+            } catch (e) {
+              print('Error saving exercise: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving exercise: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
         ),
       ),
@@ -211,32 +167,47 @@ class _ExercisePageState extends State<ExercisePage>
         builder: (context) => ExerciseFormPage(
           isEditing: true,
           exercise: exercise,
-          onSave: (exerciseData) {
-            // Handle updating the exercise
-            final updatedExercise = Exercise(
-              id: exercise.id,
-              userId: exercise.userId,
-              exerciseName: exerciseData['exerciseName'] as String,
-              targetMuscles:
-                  List<String>.from(exerciseData['targetMuscles'] as List),
-              equipment: List<String>.from(exerciseData['equipment'] as List),
-              exerciseType: exerciseData['exerciseType'] as ExerciseType,
-              cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
-            );
+          onSave: (exerciseData) async {
+            try {
+              // Update exercise
+              final updatedExercise = Exercise(
+                id: exercise.id,
+                userId: exercise.userId,
+                exerciseName: exerciseData['exerciseName'] as String,
+                targetMuscles:
+                    List<String>.from(exerciseData['targetMuscles'] as List),
+                equipment: List<String>.from(exerciseData['equipment'] as List),
+                exerciseType: exerciseData['exerciseType'] as ExerciseType,
+                cardioMetrics: exerciseData['cardioMetrics'] as CardioMetrics?,
+              );
 
-            setState(() {
-              final index = _exercises.indexWhere((ex) => ex.id == exercise.id);
-              if (index != -1) {
-                _exercises[index] = updatedExercise;
-              }
-            });
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Exercise "${updatedExercise.exerciseName}" updated successfully!'),
-              ),
-            );
+              // Save to Firestore
+              await _workoutFirestoreService.saveExercise(updatedExercise);
+
+              setState(() {
+                final index =
+                    _exercises.indexWhere((ex) => ex.id == exercise.id);
+                if (index != -1) {
+                  _exercises[index] = updatedExercise;
+                }
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Exercise "${updatedExercise.exerciseName}" updated successfully!'),
+                ),
+              );
+            } catch (e) {
+              print('Error updating exercise: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error updating exercise: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
         ),
       ),
@@ -244,33 +215,60 @@ class _ExercisePageState extends State<ExercisePage>
   }
 
   void _navigateToAddRoutine(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RoutineFormPage(
           isEditing: false,
           availableExercises: _exercises,
-          onSave: (routineData) {
-            // Handle saving the new routine
-            final newRoutine = Routine(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              userId: 'user1', // Would use actual user ID in real app
-              name: routineData['name'] as String,
-              orderIsRequired: routineData['orderIsRequired'] as bool,
-              exerciseIds:
-                  List<String>.from(routineData['exerciseIds'] as List),
-            );
+          onSave: (routineData) async {
+            try {
+              // Create routine with current user ID
+              final newRoutine = Routine(
+                id: '', // Will be set by Firestore
+                userId: authProvider.currentUser?.email ?? '',
+                name: routineData['name'] as String,
+                orderIsRequired: routineData['orderIsRequired'] as bool,
+                exerciseIds:
+                    List<String>.from(routineData['exerciseIds'] as List),
+              );
 
-            setState(() {
-              _routines.add(newRoutine);
-            });
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content:
-                    Text('Routine "${newRoutine.name}" added successfully!'),
-              ),
-            );
+              // Save to Firestore
+              final firestoreId =
+                  await _workoutFirestoreService.saveRoutine(newRoutine);
+
+              // Update local list with Firestore ID
+              final savedRoutine = Routine(
+                id: firestoreId,
+                userId: authProvider.currentUser?.email ?? '',
+                name: routineData['name'] as String,
+                orderIsRequired: routineData['orderIsRequired'] as bool,
+                exerciseIds:
+                    List<String>.from(routineData['exerciseIds'] as List),
+              );
+
+              setState(() {
+                _routines.add(savedRoutine);
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Routine "${savedRoutine.name}" added successfully!'),
+                ),
+              );
+            } catch (e) {
+              print('Error saving routine: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving routine: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
         ),
       ),
@@ -285,37 +283,51 @@ class _ExercisePageState extends State<ExercisePage>
           isEditing: true,
           routine: routine,
           availableExercises: _exercises,
-          onSave: (routineData) {
-            // Handle updating the routine
-            final updatedRoutine = Routine(
-              id: routine.id,
-              userId: routine.userId,
-              name: routineData['name'] as String,
-              orderIsRequired: routineData['orderIsRequired'] as bool,
-              exerciseIds:
-                  List<String>.from(routineData['exerciseIds'] as List),
-            );
+          onSave: (routineData) async {
+            try {
+              // Update routine
+              final updatedRoutine = Routine(
+                id: routine.id,
+                userId: routine.userId,
+                name: routineData['name'] as String,
+                orderIsRequired: routineData['orderIsRequired'] as bool,
+                exerciseIds:
+                    List<String>.from(routineData['exerciseIds'] as List),
+              );
 
-            setState(() {
-              final index = _routines.indexWhere((r) => r.id == routine.id);
-              if (index != -1) {
-                _routines[index] = updatedRoutine;
-              }
-            });
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Routine "${updatedRoutine.name}" updated successfully!'),
-              ),
-            );
+              // Save to Firestore
+              await _workoutFirestoreService.saveRoutine(updatedRoutine);
+
+              setState(() {
+                final index = _routines.indexWhere((r) => r.id == routine.id);
+                if (index != -1) {
+                  _routines[index] = updatedRoutine;
+                }
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Routine "${updatedRoutine.name}" updated successfully!'),
+                ),
+              );
+            } catch (e) {
+              print('Error updating routine: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error updating routine: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
         ),
       ),
     );
   }
 
-  void _deleteExercise(BuildContext context, Exercise exercise) {
+  void _deleteExercise(BuildContext context, Exercise exercise) async {
     // Check if any routines use this exercise
     final affectedRoutines = _routines
         .where((routine) => routine.exerciseIds.contains(exercise.id))
@@ -345,30 +357,50 @@ class _ExercisePageState extends State<ExercisePage>
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  // Delete the exercise
-                  _exercises.removeWhere((e) => e.id == exercise.id);
+              onPressed: () async {
+                try {
+                  // Delete from Firestore
+                  await _workoutFirestoreService.deleteExercise(exercise.id);
 
-                  // Delete routines that use this exercise
-                  _routines
-                      .removeWhere((r) => r.exerciseIds.contains(exercise.id));
-                });
-                Navigator.of(context).pop();
+                  // Delete affected routines from Firestore
+                  for (final routine in affectedRoutines) {
+                    await _workoutFirestoreService.deleteRoutine(routine.id);
+                  }
 
-                String successMessage =
-                    'Exercise "${exercise.exerciseName}" deleted successfully!';
-                if (affectedRoutines.isNotEmpty) {
-                  successMessage +=
-                      '\n${affectedRoutines.length} routine(s) also deleted.';
+                  setState(() {
+                    // Delete the exercise
+                    _exercises.removeWhere((e) => e.id == exercise.id);
+
+                    // Delete routines that use this exercise
+                    _routines.removeWhere(
+                        (r) => r.exerciseIds.contains(exercise.id));
+                  });
+
+                  Navigator.of(context).pop();
+
+                  String successMessage =
+                      'Exercise "${exercise.exerciseName}" deleted successfully!';
+                  if (affectedRoutines.isNotEmpty) {
+                    successMessage +=
+                        '\n${affectedRoutines.length} routine(s) also deleted.';
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(successMessage),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  print('Error deleting exercise: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting exercise: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(successMessage),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete'),
@@ -394,17 +426,32 @@ class _ExercisePageState extends State<ExercisePage>
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  _routines.removeWhere((r) => r.id == routine.id);
-                });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content:
-                        Text('Routine "${routine.name}" deleted successfully!'),
-                  ),
-                );
+              onPressed: () async {
+                try {
+                  // Delete from Firestore
+                  await _workoutFirestoreService.deleteRoutine(routine.id);
+
+                  setState(() {
+                    _routines.removeWhere((r) => r.id == routine.id);
+                  });
+
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Routine "${routine.name}" deleted successfully!'),
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  print('Error deleting routine: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting routine: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete'),
@@ -415,22 +462,17 @@ class _ExercisePageState extends State<ExercisePage>
     );
   }
 
-  // Clean up routines that have no valid exercises
-  void _cleanupOrphanedRoutines() {
-    final exerciseIds = _exercises.map((e) => e.id).toSet();
-    final orphanedRoutines = _routines.where((routine) {
-      return routine.exerciseIds.every((id) => !exerciseIds.contains(id));
-    }).toList();
-
-    if (orphanedRoutines.isNotEmpty) {
-      setState(() {
-        _routines.removeWhere((r) => orphanedRoutines.contains(r));
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF9FAFB),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Stack(
       children: [
         Column(
@@ -498,39 +540,108 @@ class _ExercisePageState extends State<ExercisePage>
                       ),
                       // Exercise list
                       Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16.0),
-                          itemCount: filteredExercises.length,
-                          itemBuilder: (context, index) {
-                            final exercise = filteredExercises[index];
-                            return ExerciseLibraryCard(
-                              exercise: exercise,
-                              onEdit: () =>
-                                  _navigateToEditExercise(context, exercise),
-                              onDelete: () =>
-                                  _deleteExercise(context, exercise),
-                            );
-                          },
-                        ),
+                        child: filteredExercises.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.fitness_center,
+                                      size: 64,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No exercises saved yet...',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: Colors.grey.shade600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Tap ➕ to build your workout arsenal!',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Colors.grey.shade500,
+                                          ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16.0),
+                                itemCount: filteredExercises.length,
+                                itemBuilder: (context, index) {
+                                  final exercise = filteredExercises[index];
+                                  return ExerciseLibraryCard(
+                                    exercise: exercise,
+                                    onEdit: () => _navigateToEditExercise(
+                                        context, exercise),
+                                    onDelete: () =>
+                                        _deleteExercise(context, exercise),
+                                  );
+                                },
+                              ),
                       ),
                     ],
                   ),
                   // Routines tab
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: ListView.builder(
-                      itemCount: validRoutines.length,
-                      itemBuilder: (context, index) {
-                        final routine = validRoutines[index];
-                        return RoutineLibraryCard(
-                          routine: routine,
-                          availableExercises: _exercises,
-                          onEdit: () =>
-                              _navigateToEditRoutine(context, routine),
-                          onDelete: () => _deleteRoutine(context, routine),
-                        );
-                      },
-                    ),
+                    child: validRoutines.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.list_alt,
+                                  size: 64,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Still no routines?',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tap ➕ and craft your fitness flow!',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: Colors.grey.shade500,
+                                      ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: validRoutines.length,
+                            itemBuilder: (context, index) {
+                              final routine = validRoutines[index];
+                              return RoutineLibraryCard(
+                                routine: routine,
+                                availableExercises: _exercises,
+                                onEdit: () =>
+                                    _navigateToEditRoutine(context, routine),
+                                onDelete: () =>
+                                    _deleteRoutine(context, routine),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),

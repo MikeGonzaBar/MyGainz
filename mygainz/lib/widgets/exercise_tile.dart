@@ -12,26 +12,25 @@ class ExerciseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 50,
-      height: 30,
+      constraints: const BoxConstraints(
+        minWidth: 45,
+        maxWidth: 80,
+        minHeight: 24,
+        maxHeight: 32,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              exercise.exerciseName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      child: Center(
+        child: Text(
+          exercise.exerciseName,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelSmall,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

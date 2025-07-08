@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2024-12-22
+
+### Added
+- **Firebase Integration** - Complete migration from local storage to Firestore cloud database
+- **Individual Set Tracking** - Log each workout set separately with detailed metrics (weight, reps, equipment per set)
+- **Real-time Data Synchronization** - Workout data synchronized across all devices instantly
+- **Cloud Backup & Restore** - Automatic backup and restoration of all user data
+- **Cross-device Access** - Access your workout data from any device with your account
+- **Firebase Authentication** - Secure user authentication and profile management
+
+### Enhanced
+- **Enhanced State Management** - Updated providers for cloud synchronization
+- **Improved Data Structure** - Hierarchical Firestore collections for better performance
+- **Set-Level Analytics** - Progress tracking based on individual workout sets
+- **Real-time UI Updates** - Live data updates without app refresh
+- **Robust Error Handling** - Comprehensive offline/online handling with retry mechanisms
+
+### Technical Improvements
+- **Firestore Service Layer** - Comprehensive service architecture for all data operations
+- **Firebase Core Integration** - Added firebase_core, cloud_firestore, and firebase_auth packages
+- **Sub-collection Architecture** - Individual sets stored as sub-collections for optimal performance
+- **Timestamp Management** - Proper timestamp handling for all data operations
+- **Security Rules** - Implemented Firestore security rules for user data protection
+
+### Migration Benefits
+- **Data Security** - Cloud backup prevents data loss
+- **Performance** - Optimized queries and real-time updates
+- **Scalability** - Database structure designed for future feature expansion
+- **Future Ready** - Foundation for social features and data sharing
+
+### Breaking Changes
+- **Data Migration** - Users will need to re-enter data due to new cloud architecture
+- **Authentication Required** - All users must create accounts for cloud sync
+
 ## [1.1.3] - 2024-12-21
 
 ### Fixed

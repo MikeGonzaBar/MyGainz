@@ -1,6 +1,6 @@
 # MyGainz
 
-**MyGainz** is a comprehensive fitness tracking application designed to help you monitor your workout progress, log exercises, create custom routines, and visualize your fitness journey. Built with Flutter and powered by local data storage, it provides a seamless experience for fitness enthusiasts of all levels.
+**MyGainz** is a comprehensive fitness tracking application designed to help you monitor your workout progress, log exercises, create custom routines, and visualize your fitness journey. Built with Flutter and powered by Firebase Firestore, it provides a seamless, cloud-synchronized experience for fitness enthusiasts of all levels.
 
 ---
 
@@ -19,6 +19,7 @@
 - [Technologies](#technologies)
 - [Data Structure](#data-structure)
 - [Installation & Setup](#installation--setup)
+- [Recent Updates](#recent-updates)
 - [Contributing](#contributing)
 - [About](#about)
 
@@ -26,46 +27,50 @@
 
 ## Overview
 
-**MyGainz** is a Flutter-based fitness tracking application that uses local data storage with SharedPreferences for a fast, offline-first experience. It offers comprehensive workout logging, progress visualization, and personalized fitness insights with support for both metric and imperial units.
+**MyGainz** is a Flutter-based fitness tracking application that uses Firebase Firestore for real-time cloud synchronization. It offers comprehensive workout logging with individual set tracking, progress visualization, and personalized fitness insights with support for both metric and imperial units.
 
 ---
 
 ## Features
 
 ### 🔐 Authentication & User Management
-- **Secure Authentication:** Email/password login with encrypted data storage
+- **Secure Authentication:** Email/password login with Firebase Authentication
 - **Dynamic Registration Flow:** Comprehensive user onboarding with personal and fitness metrics
-- **Profile Management:** Editable user stats with real-time updates
+- **Profile Management:** Editable user stats with real-time cloud synchronization
 
 ### 📊 Units & Measurement System
 - **Global Units Support:** Seamless switching between metric and imperial units
 - **Automatic Conversion:** Data stored in metric, displayed in user's preferred units
-- **Persistent Settings:** Unit preferences saved across app sessions
+- **Persistent Settings:** Unit preferences saved in the cloud
 - **Smart Formatting:** Special handling for imperial height (feet-inches) display
 
 ### 🏋️‍♂️ Comprehensive Workout System
 - **Exercise Database:** Extensive library of exercises with target muscles and equipment
 - **Smart Exercise Search:** Real-time autocomplete with muscle group filtering
 - **Custom Exercise Creation:** Add personalized exercises on-the-fly
-- **Detailed Logging:** Track sets, reps, weight, and equipment for each exercise
+- **Individual Set Tracking:** Log each set separately with weight, reps, and equipment
+- **Real-time Data Sync:** Workout data synchronized across devices
 
 ### 🎯 Routine Management
 - **Custom Routine Creator:** Build personalized workout routines
 - **Order Enforcement:** Optional exercise sequencing with visual progress indicators
 - **Smart Muscle Targeting:** Auto-calculated target muscles based on included exercises
 - **Flexible Execution:** Support for both ordered and random exercise selection
+- **Cloud Synchronization:** Routines saved and synced across devices
 
 ### 📈 Progress Visualization
 - **Real-Time Charts:** Dynamic progress tracking with multiple chart types
 - **Time-Based Filtering:** View progress over different time periods
 - **Muscle Group Analysis:** Detailed breakdown of training focus
 - **Equipment Performance:** Track improvements across different equipment types
+- **Set-Level Analytics:** Progress tracking based on individual sets
 - **Empty State Handling:** Encouraging messaging for new users
 
 ### 👤 Profile & Data Management
 - **Comprehensive Profile:** Display personal stats, fitness metrics, and achievements
 - **Muscle Group Focus:** Visual analysis of training distribution
 - **Data Export:** Full personal data export in CSV format
+- **Cloud Backup:** Automatic data backup and restoration
 - **Statistics Overview:** Real-time workout counts and progress indicators
 
 ### ⚙️ Settings & Customization
@@ -80,20 +85,22 @@
 ### Authentication & Registration
 
 - **Login Options:**
-  - **Email & Password:** Secure credential-based authentication
+  - **Email & Password:** Secure Firebase Authentication
   - **First-Time Setup:** Comprehensive registration with validation
 - **Registration Process:**
   - **Personal Information:** Name, email, birthday with date picker
   - **Physical Metrics:** Height and weight with unit conversion
   - **Body Composition:** Fat and muscle percentage tracking
+  - **Cloud Profile Creation:** Automatic Firestore user document creation
 
 ### Main Home
 
 The dashboard provides:
 - **Recent Activity:** Last 5 logged exercises and routines
 - **Quick Stats:** Current weight and height with unit display
+- **Real-time Sync:** Live updates from cloud data
 - **Empty States:** Encouraging messages for new users
-- **Real-Time Updates:** Instant reflection of new workout data
+- **Cross-device Consistency:** Same data across all devices
 
 ### Units & Settings
 
@@ -101,7 +108,7 @@ The dashboard provides:
   - Weight: Kilograms ↔ Pounds
   - Height: Centimeters ↔ Feet-Inches
   - Distance: Kilometers ↔ Miles
-- **Persistent Configuration:** Settings saved across app sessions
+- **Cloud Configuration:** Settings synchronized across devices
 - **Real-Time Conversion:** Instant unit switching without data loss
 
 ### Exercises & Routines
@@ -117,26 +124,29 @@ The dashboard provides:
   - **Order Enforcement:** Optional strict exercise sequencing
   - **Target Muscle Calculation:** Automatic muscle group analysis
   - **Flexible Execution:** Support for various workout styles
+  - **Cloud Storage:** Routines saved to Firestore for cross-device access
 
 ### Logging Workouts
 
-- **Comprehensive Logging:**
+- **Individual Set Tracking:**
   - **Exercise Selection:** Search and select from exercise database
-  - **Set Management:** Dynamic set addition with weight, reps tracking
-  - **Equipment Configuration:** Detailed equipment selection and setup
-  - **Form Validation:** Ensures complete and accurate data entry
+  - **Set-by-Set Logging:** Track each set individually with weight and reps
+  - **Equipment Per Set:** Different equipment for each set if needed
+  - **Real-time Validation:** Ensures complete and accurate data entry
+  - **Cloud Synchronization:** Each set automatically saved to Firestore
 
 - **Routine Execution:**
   - **Progress Tracking:** Visual indicators for exercise completion
   - **Order Enforcement:** Guided workout flow with locked/unlocked states
   - **Flexible Completion:** Mark exercises as complete at any time
-  - **Real-Time Updates:** Instant progress reflection
+  - **Live Updates:** Instant progress reflection across devices
 
 ### Progress Tracking
 
 - **Advanced Analytics:**
   - **Time-Based Views:** All time, 6 months, 1 month filtering
   - **Multiple Chart Types:** Line graphs, bar charts, radar charts
+  - **Set-Level Analysis:** Progress tracking based on individual sets
   - **Muscle Group Analysis:** Spider graphs for training balance
   - **Equipment Breakdown:** Performance tracking by equipment type
   - **Smart Fallbacks:** Automatic chart type switching based on data availability
@@ -151,6 +161,7 @@ The dashboard provides:
 
 - **Data Management:**
   - **Complete Export:** CSV generation with all user data
+  - **Cloud Backup:** Automatic Firestore backup
   - **Secure Sharing:** File sharing via device's share functionality
   - **Error Handling:** Robust export process with retry mechanisms
   - **Progress Feedback:** Loading states and success confirmations
@@ -169,16 +180,20 @@ The dashboard provides:
 - **Flutter 3.29.3:** Cross-platform mobile development
 - **Dart 3.7.2:** Modern programming language
 - **Provider Pattern:** State management with reactive UI updates
-- **SharedPreferences:** Local data persistence
+- **Firebase Firestore:** Cloud database with real-time synchronization
+- **Firebase Authentication:** Secure user authentication
 - **Platform Channels:** Native device integration
 
 ### 📊 Data & Analytics
 - **FL Chart:** Beautiful, interactive charts and graphs
 - **CSV Export:** Comprehensive data export functionality
 - **Real-Time Calculations:** Dynamic progress and statistics computation
-- **Local Storage:** Fast, offline-first data management
+- **Cloud Storage:** Firestore for scalable, real-time data management
 
 ### 🔧 Additional Packages
+- **cloud_firestore:** Firebase Firestore integration
+- **firebase_auth:** Firebase Authentication
+- **firebase_core:** Firebase Core SDK
 - **url_launcher:** External browser integration
 - **share_plus:** Cross-platform file sharing
 - **path_provider:** File system access
@@ -188,99 +203,101 @@ The dashboard provides:
 
 ## Data Structure
 
-The application uses local storage with SharedPreferences for fast, offline-first operation:
+The application uses Firebase Firestore for cloud storage with real-time synchronization:
 
-### User Data
+### User Collection (`users/{userId}`)
 ```dart
 {
-  "currentUser": {
-    "id": String,
-    "email": String,
-    "name": String,
-    "lastName": String,
-    "dateOfBirth": String,
-    "height": double,        // stored in cm
-    "weight": double,        // stored in kg
-    "fatPercentage": double,
-    "musclePercentage": double
-  }
+  "id": String,
+  "email": String,
+  "name": String,
+  "lastName": String,
+  "dateOfBirth": String,
+  "height": double,        // stored in cm
+  "weight": double,        // stored in kg
+  "fatPercentage": double,
+  "musclePercentage": double,
+  "createdAt": Timestamp,
+  "updatedAt": Timestamp
 }
 ```
 
-### Exercise Data
+### Exercise Collection (`users/{userId}/exercises/{exerciseId}`)
 ```dart
 {
-  "loggedExercises": [
-    {
-      "id": String,
-      "exerciseId": String,
-      "exerciseName": String,
-      "targetMuscles": List<String>,
-      "equipment": String,
-      "sets": int,
-      "date": String,
-      // Strength-specific
-      "weight": double?,      // stored in kg
-      "reps": int?,
-      // Cardio-specific
-      "distance": double?,    // stored in km
-      "duration": int?,       // stored in minutes
-      "calories": int?,
-      "pace": double?,
-      "speed": double?,
-      "heartRate": int?
-    }
-  ]
+  "id": String,
+  "exerciseId": String,
+  "exerciseName": String,
+  "targetMuscles": List<String>,
+  "equipment": String,
+  "date": Timestamp,
+  "createdAt": Timestamp,
+  // Individual sets stored as sub-collection
 }
 ```
 
-### Routine Data
+### Workout Sets Sub-collection (`users/{userId}/exercises/{exerciseId}/sets/{setId}`)
 ```dart
 {
-  "loggedRoutines": [
-    {
-      "id": String,
-      "routineId": String,
-      "name": String,
-      "targetMuscles": List<String>,
-      "date": String,
-      "exercises": List<LoggedExercise>
-    }
-  ]
+  "id": String,
+  "setNumber": int,
+  "weight": double?,      // stored in kg
+  "reps": int?,
+  "equipment": String?,
+  "createdAt": Timestamp,
+  // Cardio-specific
+  "distance": double?,    // stored in km
+  "duration": int?,       // stored in minutes
+  "calories": int?,
+  "pace": double?,
+  "speed": double?,
+  "heartRate": int?
 }
 ```
 
-### Personal Record Data
+### Routine Collection (`users/{userId}/routines/{routineId}`)
 ```dart
 {
-  "personalRecords": [
-    {
-      "id": String,
-      "exerciseId": String,
-      "exerciseName": String,
-      "date": String,
-      "equipment": String,
-      "type": String, // "weight", "distance", "duration", "pace"
-      // Strength-specific
-      "weight": double?,
-      "reps": int?,
-      "sets": int?,
-      "oneRepMax": double?,
-      // Cardio-specific
-      "distance": double?,
-      "duration": int?, // stored in minutes
-      "pace": double?
-    }
-  ]
+  "id": String,
+  "routineId": String,
+  "name": String,
+  "targetMuscles": List<String>,
+  "date": Timestamp,
+  "createdAt": Timestamp,
+  "exercises": List<LoggedExercise>
 }
 ```
 
-### Settings Data
+### Personal Records Collection (`users/{userId}/personalRecords/{recordId}`)
+```dart
+{
+  "id": String,
+  "exerciseId": String,
+  "exerciseName": String,
+  "date": Timestamp,
+  "equipment": String,
+  "type": String, // "weight", "distance", "duration", "pace"
+  // Strength-specific
+  "weight": double?,
+  "reps": int?,
+  "sets": int?,
+  "oneRepMax": double?,
+  // Cardio-specific
+  "distance": double?,
+  "duration": int?, // stored in minutes
+  "pace": double?,
+  "createdAt": Timestamp,
+  "updatedAt": Timestamp
+}
+```
+
+### Settings Collection (`users/{userId}/settings/preferences`)
 ```dart
 {
   "weightUnit": String,    // "kg" or "lbs"
   "heightUnit": String,    // "cm" or "ft-in"
-  "distanceUnit": String   // "km" or "miles"
+  "distanceUnit": String,  // "km" or "miles"
+  "updatedAt": Timestamp
 }
 ```
 
@@ -292,6 +309,7 @@ The application uses local storage with SharedPreferences for fast, offline-firs
 - Flutter SDK 3.29.3 or higher
 - Dart 3.7.2 or higher
 - iOS 12.0+ / Android API level 21+
+- Firebase project with Firestore enabled
 
 ### Getting Started
 
@@ -301,17 +319,25 @@ The application uses local storage with SharedPreferences for fast, offline-firs
    cd MyGainz/mygainz
    ```
 
-2. **Install Dependencies:**
+2. **Firebase Setup:**
+   - Create a new Firebase project at [Firebase Console](https://console.firebase.google.com/)
+   - Enable Firestore Database and Authentication
+   - Download configuration files:
+     - `google-services.json` for Android (place in `android/app/`)
+     - `GoogleService-Info.plist` for iOS (place in `ios/Runner/`)
+     - `GoogleService-Info.plist` for macOS (place in `macos/Runner/`)
+
+3. **Install Dependencies:**
    ```bash
     flutter pub get
    ```
 
-3. **Run the Application:**
+4. **Run the Application:**
     ```bash
     flutter run
     ```
 
-4. **Build for Production:**
+5. **Build for Production:**
    ```bash
    # iOS
    flutter build ios
@@ -319,6 +345,25 @@ The application uses local storage with SharedPreferences for fast, offline-firs
    # Android
    flutter build apk
    ```
+
+### Firebase Security Rules
+
+Configure Firestore security rules to protect user data:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
+```
 
 ### Development Setup
 
@@ -336,6 +381,36 @@ The application uses local storage with SharedPreferences for fast, offline-firs
    ```bash
    flutter analyze
    ```
+
+---
+
+## Recent Updates
+
+### 🚀 Version 2.0.0 - Cloud Migration & Individual Set Tracking
+
+**Major Features:**
+- **Firebase Integration:** Complete migration from local storage to Firestore
+- **Individual Set Tracking:** Log each workout set separately with detailed metrics
+- **Real-time Sync:** Data synchronized across all devices in real-time
+- **Cloud Backup:** Automatic backup and restoration of all user data
+
+**Technical Improvements:**
+- **Firestore Services:** Comprehensive service layer for all data operations
+- **Authentication Integration:** Firebase Auth for secure user management
+- **Provider Updates:** Enhanced state management with cloud synchronization
+- **Error Handling:** Robust offline/online handling with retry mechanisms
+
+**Data Structure Changes:**
+- **Hierarchical Collections:** User data organized in Firestore collections
+- **Sub-collections:** Individual sets stored as sub-collections for better performance
+- **Timestamps:** Proper timestamp handling for all data operations
+- **Scalability:** Database structure designed for future feature expansion
+
+**Migration Benefits:**
+- **Cross-device Sync:** Access your data on any device
+- **Data Security:** Cloud backup prevents data loss
+- **Performance:** Optimized queries and real-time updates
+- **Scalability:** Ready for future social features and sharing
 
 ---
 
@@ -387,4 +462,3 @@ This project is open source. See the repository for license details.
 ---
 
 **Ready to start your fitness journey? Download MyGainz and take control of your workouts today!** 💪
-# Trigger workflow

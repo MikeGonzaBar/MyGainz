@@ -248,14 +248,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                   const Text('Loading profile...'),
-                  const SizedBox(height: 24),
-                  // Debug button for troubleshooting
-                  ElevatedButton(
-                    onPressed: () async {
-                      await authProvider.debugPrintStoredData();
-                    },
-                    child: const Text('Debug Auth State'),
-                  ),
                 ],
               ),
             ),

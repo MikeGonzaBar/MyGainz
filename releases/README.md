@@ -2,9 +2,9 @@
 
 This directory contains pre-built APK files for MyGainz releases.
 
-## 📱 Current Release: v2.0.0
+## 📱 Current Release: v2.0.1
 
-- **MyGainz-v2.0.0-release.apk** (55.2MB) - Production ready APK
+- **MyGainz-v2.0.1-release.apk** (55.2MB) - Production ready APK
 
 > **Note**: Debug APK is not included due to GitHub's 100MB file size limit (debug APK is ~203MB).  
 > Debug APKs can be built locally using the build script.

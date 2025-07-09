@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/workout_provider.dart';
+import '../providers/units_provider.dart';
 import '../utils/date_helpers.dart';
+import '../models/workout_set.dart';
 import 'muscle_icon.dart';
 
 class RoutineCard extends StatelessWidget {
@@ -22,71 +24,64 @@ class RoutineCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  routine.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+      child: InkWell(
+        onTap: showEditButton ? () => _showEditDialog(context) : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    routine.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '${routine.exercises.length} exercises',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 14),
+                      ),
+                      if (onDelete != null) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          iconSize: 20,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Muscle group icons
+              Row(
+                children: routine.targetMuscles
+                    .map((muscle) => MuscleIcon(muscle: muscle))
+                    .toList(),
+              ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    DateHelpers.formatShortDate(routine.date),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ),
-                Row(
-                  children: [
-                    Text(
-                      '${routine.exercises.length} exercises',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                    ),
-                    if (showEditButton) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _showEditDialog(context),
-                        icon: const Icon(Icons.edit),
-                        iconSize: 20,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        color: const Color(0xFF1B2027),
-                      ),
-                    ],
-                    if (onDelete != null) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: onDelete,
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        iconSize: 20,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Muscle group icons
-            Row(
-              children: routine.targetMuscles
-                  .map((muscle) => MuscleIcon(muscle: muscle))
-                  .toList(),
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  DateHelpers.formatShortDate(routine.date),
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -97,10 +92,28 @@ class RoutineCard extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Edit ${routine.name}'),
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Edit ${routine.name}'),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
           content: SizedBox(
             width: double.maxFinite,
-            height: 400,
+            height: 500,
             child: SingleChildScrollView(
               child: Column(
                 children: routine.exercises.map((exercise) {
@@ -109,129 +122,393 @@ class RoutineCard extends StatelessWidget {
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Done'),
-            ),
-          ],
         );
       },
     );
   }
 
   Widget _buildExerciseEditCard(BuildContext context, LoggedExercise exercise) {
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+
+    // Convert stored weight (kg) to display weight for the current unit
+    double? displayWeight = exercise.averageWeight;
+    if (displayWeight != null && unitsProvider.weightUnit == 'lbs') {
+      displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+    }
+
     final weightController =
-        TextEditingController(text: exercise.weight.toString());
+        TextEditingController(text: displayWeight?.toStringAsFixed(1) ?? '');
     final repsController =
-        TextEditingController(text: exercise.reps.toString());
+        TextEditingController(text: exercise.averageReps?.toString() ?? '');
     final setsController =
-        TextEditingController(text: exercise.sets.toString());
+        TextEditingController(text: exercise.totalSets.toString());
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ExpansionTile(
-        title: Text(
-          exercise.exerciseName,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          '${exercise.weight}kg × ${exercise.reps} reps, ${exercise.sets} sets',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-        ),
-        trailing: IconButton(
-          onPressed: () => _showDeleteExerciseDialog(context, exercise),
-          icon: const Icon(Icons.delete, color: Colors.red),
-          iconSize: 20,
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
+      child: InkWell(
+        onTap: () => _showIndividualSetsEditDialog(context, exercise),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: weightController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Weight',
-                          border: OutlineInputBorder(),
-                        ),
+                    Text(
+                      exercise.exerciseName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 4),
+                    Consumer<UnitsProvider>(
+                      builder: (context, unitsProvider, child) {
+                        // Convert stored weight (kg) to display weight for current unit
+                        double? displayWeight = exercise.averageWeight;
+                        if (displayWeight != null &&
+                            unitsProvider.weightUnit == 'lbs') {
+                          displayWeight =
+                              displayWeight / 0.453592; // Convert kg to lbs
+                        }
+
+                        return Text(
+                          '${displayWeight?.toStringAsFixed(1) ?? 'N/A'}${unitsProvider.weightUnit} × ${exercise.averageReps ?? 'N/A'} reps, ${exercise.totalSets} sets',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.edit,
+                    color: Colors.grey.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () =>
+                        _showDeleteExerciseDialog(context, exercise),
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showIndividualSetsEditDialog(
+      BuildContext context, LoggedExercise exercise) {
+    // If exercise has individual sets, use them; otherwise create from legacy data
+    List<TextEditingController> weightControllers = [];
+    List<TextEditingController> repsControllers = [];
+    String selectedEquipment = exercise.equipment;
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+
+    if (exercise.individualSets != null &&
+        exercise.individualSets!.isNotEmpty) {
+      // Initialize controllers with existing set data (convert from kg to display unit)
+      for (int i = 0; i < exercise.individualSets!.length; i++) {
+        final set = exercise.individualSets![i];
+        double displayWeight = set.weight; // Stored in kg
+        if (unitsProvider.weightUnit == 'lbs') {
+          displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+        }
+        weightControllers
+            .add(TextEditingController(text: displayWeight.toStringAsFixed(1)));
+        repsControllers.add(TextEditingController(text: set.reps.toString()));
+      }
+    } else {
+      // Fall back to legacy data - create sets based on totalSets
+      double avgWeight = exercise.averageWeight ?? 0.0;
+      if (unitsProvider.weightUnit == 'lbs') {
+        avgWeight = avgWeight / 0.453592; // Convert kg to lbs for display
+      }
+      final avgReps = exercise.averageReps ?? 0;
+      final totalSets = exercise.totalSets;
+
+      for (int i = 0; i < totalSets; i++) {
+        weightControllers
+            .add(TextEditingController(text: avgWeight.toStringAsFixed(1)));
+        repsControllers.add(TextEditingController(text: avgReps.toString()));
+      }
+    }
+
+    final equipmentOptions = [
+      'Barbell',
+      'Dumbbell',
+      'Kettlebell',
+      'Machine',
+      'Bodyweight',
+    ];
+
+    // Function to safely dispose all controllers
+    void disposeAllControllers() {
+      try {
+        for (int i = 0; i < weightControllers.length; i++) {
+          weightControllers[i].dispose();
+        }
+        for (int i = 0; i < repsControllers.length; i++) {
+          repsControllers[i].dispose();
+        }
+        weightControllers.clear();
+        repsControllers.clear();
+      } catch (e) {
+        print('Controller disposal error (ignored): $e');
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Edit ${exercise.exerciseName}'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 500,
+                child: Column(
+                  children: [
+                    // Equipment dropdown
+                    DropdownButtonFormField<String>(
+                      value: selectedEquipment,
+                      decoration: const InputDecoration(
+                        labelText: 'Equipment',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: equipmentOptions.map((equipment) {
+                        return DropdownMenuItem(
+                          value: equipment,
+                          child: Text(equipment),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedEquipment = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Sets list
                     Expanded(
-                      child: TextField(
-                        controller: repsController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Reps',
-                          border: OutlineInputBorder(),
-                        ),
+                      child: ListView.builder(
+                        itemCount: weightControllers.length,
+                        itemBuilder: (context, index) {
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  // Set number
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1B2027),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // Weight field
+                                  Expanded(
+                                    child: TextField(
+                                      controller: weightControllers[index],
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Weight',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Reps field
+                                  Expanded(
+                                    child: TextField(
+                                      controller: repsControllers[index],
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Reps',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Delete set button (only show if more than 1 set)
+                                  if (weightControllers.length > 1) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          weightControllers[index].dispose();
+                                          repsControllers[index].dispose();
+                                          weightControllers.removeAt(index);
+                                          repsControllers.removeAt(index);
+                                        });
+                                      },
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
+                                      iconSize: 20,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: setsController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Sets',
-                          border: OutlineInputBorder(),
+
+                    // Add set button
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            weightControllers.add(TextEditingController());
+                            repsControllers.add(TextEditingController());
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Set'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1B2027),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final weight = double.tryParse(weightController.text);
-                      final reps = int.tryParse(repsController.text);
-                      final sets = int.tryParse(setsController.text);
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    disposeAllControllers();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Dismiss keyboard first
+                    FocusScope.of(context).unfocus();
 
-                      if (weight != null && reps != null && sets != null) {
-                        final workoutProvider = Provider.of<WorkoutProvider>(
-                            context,
-                            listen: false);
-                        await workoutProvider.updateLoggedRoutineExercise(
-                          routine.id,
-                          exercise.id,
-                          weight: weight,
+                    // Add small delay to ensure keyboard dismissal
+                    await Future.delayed(const Duration(milliseconds: 100));
+
+                    // Validate and collect sets data
+                    List<WorkoutSetData> newSets = [];
+                    final unitsProvider =
+                        Provider.of<UnitsProvider>(context, listen: false);
+
+                    for (int i = 0; i < weightControllers.length; i++) {
+                      final weight = double.tryParse(weightControllers[i].text);
+                      final reps = int.tryParse(repsControllers[i].text);
+
+                      if (weight != null &&
+                          reps != null &&
+                          weight > 0 &&
+                          reps > 0) {
+                        // Convert weight to kg (base unit) for storage
+                        double weightInKg = weight;
+                        if (unitsProvider.weightUnit == 'lbs') {
+                          weightInKg = weight * 0.453592; // Convert lbs to kg
+                        }
+
+                        newSets.add(WorkoutSetData(
+                          weight: weightInKg, // Always store in kg
                           reps: reps,
-                          sets: sets,
-                        );
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '${exercise.exerciseName} updated successfully!'),
-                            ),
-                          );
-                        }
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter valid numbers'),
-                            ),
-                          );
-                        }
+                          setNumber: i + 1,
+                        ));
                       }
-                    },
-                    child: const Text('Update'),
+                    }
+
+                    if (newSets.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Please enter valid weight and reps for at least one set'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Update exercise with new individual sets
+                    try {
+                      final workoutProvider =
+                          Provider.of<WorkoutProvider>(context, listen: false);
+                      await workoutProvider.updateLoggedExerciseWithSets(
+                        exercise.id,
+                        individualSets: newSets,
+                        equipment: selectedEquipment,
+                      );
+
+                      disposeAllControllers();
+
+                      if (context.mounted) {
+                        Navigator.pop(context); // Close individual sets dialog
+                        Navigator.pop(context); // Close routine edit dialog
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                '${exercise.exerciseName} updated successfully!'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      print('Error updating exercise sets: $e');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error updating exercise: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B2027),
+                    foregroundColor: Colors.white,
                   ),
+                  child: const Text('Save'),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 

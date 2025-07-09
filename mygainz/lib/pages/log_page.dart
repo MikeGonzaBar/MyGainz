@@ -40,6 +40,10 @@ class _LogPageState extends State<LogPage> {
   Map<String, String> routineExerciseEquipment = {};
   List<String> completedExercises = [];
 
+  // Set focus tracking
+  int focusedSetIndex = 0; // For single exercise mode
+  Map<String, int> routineFocusedSetIndex = {}; // For routine mode
+
   final List<String> equipmentOptions = [
     'Barbell',
     'Dumbbell',
@@ -128,6 +132,7 @@ class _LogPageState extends State<LogPage> {
       }
       // Reset input fields
       sets = [WorkoutSet()];
+      focusedSetIndex = 0; // Reset focus to first set
       _distanceController.clear();
       _durationController.clear();
       _caloriesController.clear();
@@ -191,6 +196,7 @@ class _LogPageState extends State<LogPage> {
   void _addSet() {
     setState(() {
       sets.add(WorkoutSet());
+      focusedSetIndex = sets.length - 1; // Focus on the new set
     });
   }
 
@@ -198,6 +204,12 @@ class _LogPageState extends State<LogPage> {
     if (sets.length > 1) {
       setState(() {
         sets.removeAt(index);
+        // Adjust focused set index if needed
+        if (focusedSetIndex >= sets.length) {
+          focusedSetIndex = sets.length - 1;
+        } else if (focusedSetIndex > index) {
+          focusedSetIndex--;
+        }
       });
     }
   }
@@ -253,9 +265,11 @@ class _LogPageState extends State<LogPage> {
     } else {
       // Handle strength exercise logging with individual sets
       List<WorkoutSetData> individualSets = [];
+      final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
 
       for (int i = 0; i < sets.length; i++) {
-        final setData = WorkoutSetData.fromWorkoutSet(sets[i], i + 1);
+        final setData = WorkoutSetData.fromWorkoutSet(sets[i], i + 1,
+            currentWeightUnit: unitsProvider.weightUnit);
         if (setData != null) {
           individualSets.add(setData);
         }
@@ -285,6 +299,7 @@ class _LogPageState extends State<LogPage> {
     _searchController.clear();
     setState(() {
       sets = [WorkoutSet()];
+      focusedSetIndex = 0; // Reset focus
       _distanceController.clear();
       _durationController.clear();
       _caloriesController.clear();
@@ -305,10 +320,12 @@ class _LogPageState extends State<LogPage> {
       routineExerciseSets.clear();
       routineExerciseEquipment.clear();
       completedExercises.clear();
+      routineFocusedSetIndex.clear();
 
       // Initialize sets and equipment for each exercise
       for (String exerciseId in routine.exerciseIds) {
         routineExerciseSets[exerciseId] = [WorkoutSet()];
+        routineFocusedSetIndex[exerciseId] = 0; // Initialize focus to first set
 
         // Find the exercise and set default equipment
         final exercise = availableExercises.firstWhere(
@@ -329,6 +346,9 @@ class _LogPageState extends State<LogPage> {
   void _addRoutineExerciseSet(String exerciseId) {
     setState(() {
       routineExerciseSets[exerciseId]?.add(WorkoutSet());
+      // Focus on the new set
+      final setCount = routineExerciseSets[exerciseId]?.length ?? 0;
+      routineFocusedSetIndex[exerciseId] = setCount - 1;
     });
   }
 
@@ -336,6 +356,14 @@ class _LogPageState extends State<LogPage> {
     if ((routineExerciseSets[exerciseId]?.length ?? 0) > 1) {
       setState(() {
         routineExerciseSets[exerciseId]?.removeAt(index);
+        // Adjust focused set index if needed
+        final setCount = routineExerciseSets[exerciseId]?.length ?? 0;
+        final currentFocus = routineFocusedSetIndex[exerciseId] ?? 0;
+        if (currentFocus >= setCount) {
+          routineFocusedSetIndex[exerciseId] = setCount - 1;
+        } else if (currentFocus > index) {
+          routineFocusedSetIndex[exerciseId] = currentFocus - 1;
+        }
       });
     }
   }
@@ -350,11 +378,25 @@ class _LogPageState extends State<LogPage> {
     });
   }
 
+  // Set focus management methods
+  void _focusOnSet(int index) {
+    setState(() {
+      focusedSetIndex = index;
+    });
+  }
+
+  void _focusOnRoutineSet(String exerciseId, int index) {
+    setState(() {
+      routineFocusedSetIndex[exerciseId] = index;
+    });
+  }
+
   void _saveRoutineWorkout() async {
     if (selectedRoutine == null) return;
 
     final workoutProvider =
         Provider.of<WorkoutProvider>(context, listen: false);
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     List<LoggedExercise> loggedExercises = [];
 
@@ -369,7 +411,8 @@ class _LogPageState extends State<LogPage> {
       List<WorkoutSetData> individualSets = [];
 
       for (int i = 0; i < exerciseSets.length; i++) {
-        final setData = WorkoutSetData.fromWorkoutSet(exerciseSets[i], i + 1);
+        final setData = WorkoutSetData.fromWorkoutSet(exerciseSets[i], i + 1,
+            currentWeightUnit: unitsProvider.weightUnit);
         if (setData != null) {
           individualSets.add(setData);
         }
@@ -411,6 +454,7 @@ class _LogPageState extends State<LogPage> {
         routineExerciseSets.clear();
         routineExerciseEquipment.clear();
         completedExercises.clear();
+        routineFocusedSetIndex.clear(); // Reset focus
       });
 
       scaffoldMessenger.showSnackBar(
@@ -516,7 +560,7 @@ class _LogPageState extends State<LogPage> {
           children: [
             const Text(
               'Log Workout',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             WorkoutModeToggle(
@@ -916,13 +960,27 @@ class _LogPageState extends State<LogPage> {
           'Sets',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         ...sets.asMap().entries.map((entry) {
           final index = entry.key;
           final set = entry.value;
+          final isFocused = index == focusedSetIndex;
+
+          // Show compact view if not focused
+          if (!isFocused) {
+            return _buildCompactSetWidget(
+              index: index,
+              set: set,
+              onTap: () => _focusOnSet(index),
+              onDelete: sets.length > 1 ? () => _removeSet(index) : null,
+              showDelete: sets.length > 1,
+            );
+          }
+
+          // Show expanded view if focused
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
@@ -937,7 +995,7 @@ class _LogPageState extends State<LogPage> {
                       'Set ${index + 1}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 13,
                       ),
                     ),
                     if (sets.length > 1)
@@ -950,7 +1008,7 @@ class _LogPageState extends State<LogPage> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -976,7 +1034,7 @@ class _LogPageState extends State<LogPage> {
             ),
           );
         }),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         // Add Set button below all sets
         SizedBox(
           width: double.infinity,
@@ -1388,6 +1446,7 @@ class _LogPageState extends State<LogPage> {
                   routineExerciseSets.clear();
                   routineExerciseEquipment.clear();
                   completedExercises.clear();
+                  routineFocusedSetIndex.clear(); // Reset focus
                 });
               },
               child: const Text('Change'),
@@ -1526,12 +1585,17 @@ class _LogPageState extends State<LogPage> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              exercise.exerciseName,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDisabled ? Colors.grey : Colors.black,
+                            Expanded(
+                              child: Text(
+                                exercise.exerciseName,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDisabled ? Colors.grey : Colors.black,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (isDisabled) ...[
@@ -1551,6 +1615,8 @@ class _LogPageState extends State<LogPage> {
                                 isDisabled ? Colors.grey : Colors.grey.shade600,
                             fontSize: 12,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (isDisabled)
                           Text(
@@ -1564,20 +1630,28 @@ class _LogPageState extends State<LogPage> {
                       ],
                     ),
                   ),
-                  if (isCompleted)
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
+                  // Right side - show completion status and stats when completed
+                  if (isCompleted) ...[
+                    Flexible(
+                      child: _buildCompactStats(exerciseId),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _toggleExerciseCompletion(exerciseId),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    )
-                  else if (!isDisabled)
+                    ),
+                  ] else if (!isDisabled)
                     Checkbox(
                       value: false,
                       onChanged: (value) =>
@@ -1587,15 +1661,16 @@ class _LogPageState extends State<LogPage> {
                 ],
               ),
 
-              if (!isDisabled || isCompleted) ...[
-                const SizedBox(height: 16),
+              // Show expanded form when not completed or not disabled
+              if (!isCompleted && (!isDisabled || isCompleted)) ...[
+                const SizedBox(height: 12),
 
                 // Equipment selection
                 const Text(
                   'Equipment',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -1616,16 +1691,14 @@ class _LogPageState extends State<LogPage> {
                                 ? FontWeight.bold
                                 : FontWeight.normal,
                           ),
-                          onSelected: !isCompleted
-                              ? (selected) {
-                                  if (selected) {
-                                    setState(() {
-                                      routineExerciseEquipment[exerciseId] =
-                                          equipment;
-                                    });
-                                  }
-                                }
-                              : null,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                routineExerciseEquipment[exerciseId] =
+                                    equipment;
+                              });
+                            }
+                          },
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -1634,41 +1707,240 @@ class _LogPageState extends State<LogPage> {
                     }).toList(),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Sets
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Sets',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (!isCompleted)
-                      TextButton.icon(
-                        onPressed: () => _addRoutineExerciseSet(exerciseId),
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add Set'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF1B2027),
-                        ),
-                      ),
-                  ],
+                const Text(
+                  'Sets',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 ...routineExerciseSets[exerciseId]!.asMap().entries.map((
                   entry,
                 ) {
                   final index = entry.key;
                   final set = entry.value;
-                  return _buildRoutineSetWidget(
-                      exerciseId, index, set, isCompleted);
+                  return _buildRoutineSetWidget(exerciseId, index, set,
+                      false); // Never completed in edit mode
                 }),
+
+                // Add Set button at the bottom
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addRoutineExerciseSet(exerciseId),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Set'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1B2027),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactStats(String exerciseId) {
+    final sets = routineExerciseSets[exerciseId] ?? [];
+    final selectedEquipment = routineExerciseEquipment[exerciseId] ?? 'Unknown';
+
+    // Calculate stats from the sets (weights are entered in current unit, display as-is)
+    double totalWeight = 0;
+    int totalReps = 0;
+    int validSets = 0;
+
+    for (final set in sets) {
+      final weight = double.tryParse(set.weightController.text) ?? 0;
+      final reps = int.tryParse(set.repsController.text) ?? 0;
+
+      if (weight > 0 && reps > 0) {
+        totalWeight += weight;
+        totalReps += reps;
+        validSets++;
+      }
+    }
+
+    final averageWeight = validSets > 0 ? totalWeight / validSets : 0.0;
+    final averageReps = validSets > 0 ? (totalReps / validSets).round() : 0;
+
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Equipment badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  selectedEquipment,
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Sets count
+              Text(
+                '${validSets}x',
+                style: TextStyle(
+                  color: Colors.green.shade700,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              // Weight and reps in a single chip if both exist
+              if (averageWeight > 0 && averageReps > 0) ...[
+                const SizedBox(width: 4),
+                _buildStatChip(
+                  '${unitsProvider.formatWeight(averageWeight)} × ${averageReps}',
+                  Icons.fitness_center,
+                ),
+              ] else ...[
+                // Show individual stats if only one exists
+                if (averageWeight > 0) ...[
+                  const SizedBox(width: 4),
+                  _buildStatChip(
+                    unitsProvider.formatWeight(averageWeight),
+                    Icons.fitness_center,
+                  ),
+                ],
+                if (averageReps > 0) ...[
+                  const SizedBox(width: 4),
+                  _buildStatChip(
+                    '$averageReps reps',
+                    Icons.repeat,
+                  ),
+                ],
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatChip(String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.green.shade700),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.green.shade700,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactSetWidget({
+    required int index,
+    required WorkoutSet set,
+    required VoidCallback onTap,
+    required VoidCallback? onDelete,
+    required bool showDelete,
+  }) {
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+    final weight = double.tryParse(set.weightController.text) ?? 0;
+    final reps = int.tryParse(set.repsController.text) ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Set ${index + 1}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (weight > 0 || reps > 0) ...[
+                Text(
+                  weight > 0 ? unitsProvider.formatWeight(weight) : '-',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: weight > 0 ? Colors.black87 : Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '×',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  reps > 0 ? '$reps reps' : '- reps',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: reps > 0 ? Colors.black87 : Colors.grey.shade500,
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  'Empty set',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              if (showDelete && onDelete != null)
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red.shade400,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
             ],
           ),
         ),
@@ -1679,9 +1951,26 @@ class _LogPageState extends State<LogPage> {
   Widget _buildRoutineSetWidget(
       String exerciseId, int index, WorkoutSet set, bool isCompleted) {
     final sets = routineExerciseSets[exerciseId]!;
+    final focusedIndex = routineFocusedSetIndex[exerciseId] ?? 0;
+    final isFocused = index == focusedIndex && !isCompleted;
+
+    // Show compact view if not focused and not completed
+    if (!isFocused && !isCompleted) {
+      return _buildCompactSetWidget(
+        index: index,
+        set: set,
+        onTap: () => _focusOnRoutineSet(exerciseId, index),
+        onDelete: sets.length > 1
+            ? () => _removeRoutineExerciseSet(exerciseId, index)
+            : null,
+        showDelete: sets.length > 1,
+      );
+    }
+
+    // Show expanded view if focused or completed
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isCompleted ? Colors.green.shade50 : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
@@ -1698,7 +1987,7 @@ class _LogPageState extends State<LogPage> {
                 'Set ${index + 1}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 13,
                   color: isCompleted ? Colors.green.shade800 : Colors.black,
                 ),
               ),
@@ -1706,13 +1995,13 @@ class _LogPageState extends State<LogPage> {
                 IconButton(
                   onPressed: () => _removeRoutineExerciseSet(exerciseId, index),
                   icon: const Icon(Icons.delete_outline),
-                  color: Colors.red,
+                  color: Colors.red.shade400,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Consumer<UnitsProvider>(
             builder: (context, unitsProvider, child) {
               return Row(
@@ -1807,7 +2096,7 @@ class _LogPageState extends State<LogPage> {
             },
           ),
           if (isCompleted) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               children: [
                 Icon(Icons.check_circle,

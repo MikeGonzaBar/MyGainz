@@ -13,9 +13,10 @@ class WorkoutModeToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 48,
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
@@ -23,28 +24,40 @@ class WorkoutModeToggle extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onModeChanged(true),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                margin: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   color: isExerciseMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: isExerciseMode
-                      ? Border.all(color: Colors.grey.shade300)
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: isExerciseMode
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          )
+                        ]
                       : null,
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.fitness_center,
-                      size: 32,
-                      color: isExerciseMode ? Colors.black : Colors.grey,
+                      size: 18,
+                      color: isExerciseMode
+                          ? const Color(0xFF1B2027)
+                          : Colors.grey.shade600,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(width: 6),
                     Text(
-                      'Single\nExercise',
-                      textAlign: TextAlign.center,
+                      'Single Exercise',
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isExerciseMode ? Colors.black : Colors.grey,
+                        fontSize: 12,
+                        fontWeight:
+                            isExerciseMode ? FontWeight.w600 : FontWeight.w500,
+                        color: isExerciseMode
+                            ? const Color(0xFF1B2027)
+                            : Colors.grey.shade600,
                       ),
                     ),
                   ],
@@ -56,28 +69,40 @@ class WorkoutModeToggle extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onModeChanged(false),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 26),
+                margin: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   color: !isExerciseMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  border: !isExerciseMode
-                      ? Border.all(color: Colors.grey.shade300)
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: !isExerciseMode
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          )
+                        ]
                       : null,
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.checklist,
-                      size: 32,
-                      color: !isExerciseMode ? Colors.black : Colors.grey,
+                      size: 18,
+                      color: !isExerciseMode
+                          ? const Color(0xFF1B2027)
+                          : Colors.grey.shade600,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(width: 6),
                     Text(
                       'Routine',
-                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: !isExerciseMode ? Colors.black : Colors.grey,
+                        fontSize: 12,
+                        fontWeight:
+                            !isExerciseMode ? FontWeight.w600 : FontWeight.w500,
+                        color: !isExerciseMode
+                            ? const Color(0xFF1B2027)
+                            : Colors.grey.shade600,
                       ),
                     ),
                   ],

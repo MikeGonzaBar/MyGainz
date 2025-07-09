@@ -40,9 +40,12 @@
 
 ### 📊 Units & Measurement System
 - **Global Units Support:** Seamless switching between metric and imperial units
-- **Automatic Conversion:** Data stored in metric, displayed in user's preferred units
-- **Persistent Settings:** Unit preferences saved in the cloud
+- **Standardized Storage:** All weights stored in kg (base unit) for consistency and accuracy
+- **Smart Display Conversion:** Automatic conversion to user's preferred units for display
+- **Persistent Settings:** Unit preferences saved in the cloud and synchronized across devices
 - **Smart Formatting:** Special handling for imperial height (feet-inches) display
+- **Data Migration:** Automatic one-time migration to fix legacy data with incorrect unit storage
+- **Cross-Platform Consistency:** Same weight values displayed correctly on all devices regardless of unit preference
 
 ### 🏋️‍♂️ Comprehensive Workout System
 - **Exercise Database:** Extensive library of exercises with target muscles and equipment
@@ -203,7 +206,7 @@ The dashboard provides:
 
 ## Data Structure
 
-The application uses Firebase Firestore for cloud storage with real-time synchronization:
+The application uses Firebase Firestore for cloud storage with real-time synchronization. **Note:** All weight values are stored in kg (kilograms) as the base unit for consistency, regardless of the user's preferred display unit:
 
 ### User Collection (`users/{userId}`)
 ```dart
@@ -385,6 +388,25 @@ service cloud.firestore {
 ---
 
 ## Recent Updates
+
+### 🔧 Version 2.0.1 - Unit Conversion Bug Fixes & Data Migration
+
+**Critical Bug Fixes:**
+- **Unit Conversion Fix:** Resolved major bug where weights were stored in user's input unit instead of being converted to kg (base unit)
+- **Display Consistency:** Fixed weight display inconsistencies when switching between kg and lbs
+- **Data Migration Script:** Automatic one-time migration to fix existing incorrectly stored weight data
+- **Personal Records Fix:** Updated personal record displays to show correct units
+
+**Technical Improvements:**
+- **Standardized Storage:** All weights now stored in kg regardless of user's input unit
+- **Smart Display Logic:** Weights automatically converted to user's preferred unit for display
+- **Migration Safety:** One-time migration script with heuristic detection to preserve data integrity
+- **Cross-Component Fixes:** Updated all exercise cards, routine displays, and personal record components
+
+**User Experience Enhancements:**
+- **Seamless Unit Switching:** Users can now confidently switch between kg and lbs without data corruption
+- **Accurate Progress Tracking:** Personal records and progress charts now display correct values in both units
+- **Legacy Data Support:** Existing workouts automatically corrected without data loss
 
 ### 🚀 Version 2.0.0 - Cloud Migration & Individual Set Tracking
 

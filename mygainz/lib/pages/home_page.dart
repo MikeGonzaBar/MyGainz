@@ -101,8 +101,10 @@ class HomePage extends StatelessWidget {
               _buildEmptyState(
                   context, 'Nothing recent here... Time to break a sweat!')
             else ...[
-              ...recentExercises
-                  .map((exercise) => ExerciseCard(exercise: exercise)),
+              ...recentExercises.map((exercise) => ExerciseCard(
+                    exercise: exercise,
+                    showEditButton: true,
+                  )),
               const SizedBox(height: 8),
               Center(
                 child: TextButton.icon(
@@ -124,7 +126,10 @@ class HomePage extends StatelessWidget {
               _buildEmptyState(
                   context, 'No routines wrapped up... Let\'s finish strong!')
             else ...[
-              ...recentRoutines.map((routine) => RoutineCard(routine: routine)),
+              ...recentRoutines.map((routine) => RoutineCard(
+                    routine: routine,
+                    showEditButton: true,
+                  )),
               const SizedBox(height: 8),
               Center(
                 child: TextButton.icon(

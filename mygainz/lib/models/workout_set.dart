@@ -45,13 +45,20 @@ class WorkoutSetData {
   }
 
   // Helper method to create from WorkoutSet UI controllers
-  static WorkoutSetData? fromWorkoutSet(WorkoutSet workoutSet, int setNumber) {
+  static WorkoutSetData? fromWorkoutSet(WorkoutSet workoutSet, int setNumber,
+      {required String currentWeightUnit}) {
     final weight = double.tryParse(workoutSet.weightController.text);
     final reps = int.tryParse(workoutSet.repsController.text);
 
     if (weight != null && reps != null && weight > 0 && reps > 0) {
+      // Convert weight to kg (base unit) for storage
+      double weightInKg = weight;
+      if (currentWeightUnit == 'lbs') {
+        weightInKg = weight * 0.453592; // Convert lbs to kg
+      }
+
       return WorkoutSetData(
-        weight: weight,
+        weight: weightInKg, // Always store in kg
         reps: reps,
         setNumber: setNumber,
       );

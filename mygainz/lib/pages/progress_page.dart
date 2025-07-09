@@ -242,7 +242,7 @@ class _ProgressPageState extends State<ProgressPage> {
           children: [
             const Text(
               'Progress Tracker',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
 

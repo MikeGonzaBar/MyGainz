@@ -3,6 +3,7 @@ import '../models/personal_record.dart';
 import '../models/workout_set.dart';
 import '../services/personal_record_service.dart';
 import '../services/workout_firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoggedExercise {
   final String id;
@@ -241,6 +242,84 @@ class WorkoutProvider with ChangeNotifier {
     _loadWorkouts();
   }
 
+  // Migration function to add existing routine exercises to individual exercises
+  Future<void> migrateExistingRoutineExercises() async {
+    try {
+      bool hasNewMigrations = false;
+
+      for (final routine in _loggedRoutines) {
+        for (final exercise in routine.exercises) {
+          // Check if this exercise from the routine already exists as an individual exercise
+          final existingIndividualExercise = _loggedExercises.firstWhere(
+            (e) =>
+                e.exerciseId == exercise.exerciseId &&
+                e.date.isAtSameMomentAs(routine.date),
+            orElse: () => LoggedExercise(
+              id: '',
+              exerciseId: '',
+              exerciseName: '',
+              targetMuscles: [],
+              equipment: '',
+              date: DateTime.now(),
+            ),
+          );
+
+          // If no matching individual exercise exists, create one
+          if (existingIndividualExercise.id.isEmpty) {
+            try {
+              // Save each exercise as an individual session to Firestore
+              final exerciseFirestoreId =
+                  await _workoutFirestoreService.logExerciseSession(exercise);
+
+              // Create individual exercise with Firestore ID for local cache
+              final individualExercise = LoggedExercise(
+                id: exerciseFirestoreId,
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                targetMuscles: exercise.targetMuscles,
+                equipment: exercise.equipment,
+                date: exercise.date,
+                individualSets: exercise.individualSets,
+                sets: exercise.sets,
+                weight: exercise.weight,
+                reps: exercise.reps,
+                distance: exercise.distance,
+                duration: exercise.duration,
+                pace: exercise.pace,
+                calories: exercise.calories,
+                speed: exercise.speed,
+                heartRate: exercise.heartRate,
+              );
+
+              // Add to individual exercises list
+              _loggedExercises.add(individualExercise);
+
+              // Check for new personal records for each exercise
+              await _checkAndCreatePersonalRecord(individualExercise);
+
+              hasNewMigrations = true;
+              print('Migrated exercise from routine: ${exercise.exerciseName}');
+            } catch (e) {
+              print(
+                  'Error migrating exercise from routine: ${exercise.exerciseName}, error: $e');
+              // Continue with other exercises even if one fails
+            }
+          }
+        }
+      }
+
+      if (hasNewMigrations) {
+        notifyListeners();
+        print(
+            'Successfully migrated existing routine exercises to individual exercises');
+      } else {
+        print('No routine exercises needed migration');
+      }
+    } catch (e) {
+      print('Error during routine exercise migration: $e');
+    }
+  }
+
   // Load workouts from Firestore
   Future<void> _loadWorkouts() async {
     try {
@@ -261,6 +340,13 @@ class WorkoutProvider with ChangeNotifier {
       _achievements = futures[3] as List<Achievement>;
 
       _isLoading = false;
+
+      // Run one-time migration to fix weight units
+      await _migrateWeightUnits();
+
+      // Run migration for existing routine exercises
+      await migrateExistingRoutineExercises();
+
       notifyListeners();
       print(
           'Workouts loaded from Firestore: ${_loggedExercises.length} exercises, ${_loggedRoutines.length} routines, ${_personalRecords.length} PRs, ${_achievements.length} achievements');
@@ -384,11 +470,11 @@ class WorkoutProvider with ChangeNotifier {
     );
 
     try {
-      // Save to Firestore
+      // Save routine to Firestore
       final firestoreId =
           await _workoutFirestoreService.logRoutineSession(loggedRoutine);
 
-      // Update local list with Firestore ID
+      // Update local routine list with Firestore ID
       final updatedRoutine = LoggedRoutine(
         id: firestoreId,
         routineId: routineId,
@@ -400,8 +486,53 @@ class WorkoutProvider with ChangeNotifier {
       );
 
       _loggedRoutines.add(updatedRoutine);
+
+      // ALSO LOG EACH EXERCISE INDIVIDUALLY
+      // This makes them appear in recent exercises and count for PRs/achievements
+      for (final exercise in exercises) {
+        try {
+          // Save each exercise as an individual session to Firestore
+          final exerciseFirestoreId =
+              await _workoutFirestoreService.logExerciseSession(exercise);
+
+          // Create individual exercise with Firestore ID for local cache
+          final individualExercise = LoggedExercise(
+            id: exerciseFirestoreId,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            targetMuscles: exercise.targetMuscles,
+            equipment: exercise.equipment,
+            date: exercise.date,
+            individualSets: exercise.individualSets,
+            sets: exercise.sets,
+            weight: exercise.weight,
+            reps: exercise.reps,
+            distance: exercise.distance,
+            duration: exercise.duration,
+            pace: exercise.pace,
+            calories: exercise.calories,
+            speed: exercise.speed,
+            heartRate: exercise.heartRate,
+          );
+
+          // Add to individual exercises list
+          _loggedExercises.add(individualExercise);
+
+          // Check for new personal records for each exercise
+          await _checkAndCreatePersonalRecord(individualExercise);
+
+          print(
+              'Individual exercise logged from routine: ${exercise.exerciseName}');
+        } catch (e) {
+          print(
+              'Error logging individual exercise from routine: ${exercise.exerciseName}, error: $e');
+          // Continue with other exercises even if one fails
+        }
+      }
+
       notifyListeners();
-      print('Routine logged to Firestore: $routineName');
+      print(
+          'Routine logged to Firestore: $routineName (with ${exercises.length} individual exercises)');
     } catch (e) {
       print('Error logging routine to Firestore: $e');
       throw Exception('Failed to log routine: $e');
@@ -546,13 +677,42 @@ class WorkoutProvider with ChangeNotifier {
   // Delete a logged routine
   Future<void> deleteLoggedRoutine(String routineId) async {
     try {
-      // Delete from Firestore
+      // Find the routine first to get its exercises
+      final routine = _loggedRoutines.firstWhere((r) => r.id == routineId);
+
+      // Delete routine from Firestore
       await _workoutFirestoreService.deleteRoutineSession(routineId);
 
-      // Delete from local list
+      // Also delete individual exercises that were logged from this routine
+      // These have exercise IDs that contain the routine ID
+      for (final exercise in routine.exercises) {
+        try {
+          // Find and delete corresponding individual exercise sessions
+          final exercisesToDelete = _loggedExercises
+              .where((e) =>
+                  e.exerciseId == exercise.exerciseId &&
+                  e.date.isAtSameMomentAs(routine.date))
+              .toList();
+
+          for (final exerciseToDelete in exercisesToDelete) {
+            await _workoutFirestoreService
+                .deleteExerciseSession(exerciseToDelete.id);
+            _loggedExercises.removeWhere((e) => e.id == exerciseToDelete.id);
+            print(
+                'Deleted individual exercise from routine: ${exerciseToDelete.exerciseName}');
+          }
+        } catch (e) {
+          print(
+              'Error deleting individual exercise from routine: ${exercise.exerciseName}, error: $e');
+          // Continue with other exercises even if one fails
+        }
+      }
+
+      // Delete routine from local list
       _loggedRoutines.removeWhere((r) => r.id == routineId);
       notifyListeners();
-      print('Routine deleted from Firestore: $routineId');
+      print(
+          'Routine and its individual exercises deleted from Firestore: $routineId');
     } catch (e) {
       print('Error deleting routine from Firestore: $e');
       throw Exception('Failed to delete routine: $e');
@@ -875,6 +1035,14 @@ class WorkoutProvider with ChangeNotifier {
     required List<WorkoutSetData> individualSets,
     String? equipment,
   }) async {
+    // Check if this is a routine exercise (ID format: routineId_exerciseIndex)
+    if (exerciseId.contains('_')) {
+      await _updateRoutineExerciseWithSets(exerciseId,
+          individualSets: individualSets, equipment: equipment);
+      return;
+    }
+
+    // Handle individual exercise update
     final index = _loggedExercises.indexWhere((ex) => ex.id == exerciseId);
     if (index != -1) {
       final exercise = _loggedExercises[index];
@@ -916,6 +1084,386 @@ class WorkoutProvider with ChangeNotifier {
         print('Error updating exercise individual sets in Firestore: $e');
         throw Exception('Failed to update exercise individual sets: $e');
       }
+    }
+  }
+
+  // Update a routine exercise with individual sets
+  Future<void> _updateRoutineExerciseWithSets(
+    String routineExerciseId, {
+    required List<WorkoutSetData> individualSets,
+    String? equipment,
+  }) async {
+    // Parse routine exercise ID (format: routineId_exerciseIndex)
+    final parts = routineExerciseId.split('_');
+    if (parts.length != 2) {
+      throw Exception('Invalid routine exercise ID format');
+    }
+
+    final routineId = parts[0];
+    final exerciseIndex = int.tryParse(parts[1]);
+
+    if (exerciseIndex == null) {
+      throw Exception('Invalid exercise index in routine exercise ID');
+    }
+
+    // Find the routine
+    final routineIndex = _loggedRoutines.indexWhere((r) => r.id == routineId);
+    if (routineIndex == -1) {
+      throw Exception('Routine not found');
+    }
+
+    final routine = _loggedRoutines[routineIndex];
+    if (exerciseIndex >= routine.exercises.length) {
+      throw Exception('Exercise index out of range');
+    }
+
+    final exercise = routine.exercises[exerciseIndex];
+
+    try {
+      // Update in Firestore
+      await _workoutFirestoreService.updateRoutineSessionExercise(
+        routineId,
+        exercise.exerciseId,
+        individualSets,
+        equipment ?? exercise.equipment,
+      );
+
+      // Update local routine cache
+      final updatedExercise = LoggedExercise(
+        id: exercise.id,
+        exerciseId: exercise.exerciseId,
+        exerciseName: exercise.exerciseName,
+        targetMuscles: exercise.targetMuscles,
+        date: exercise.date,
+        // Set new individual sets
+        individualSets: individualSets,
+        // Clear legacy fields since we're using individual sets
+        sets: null,
+        weight: null,
+        reps: null,
+        // Updated equipment
+        equipment: equipment ?? exercise.equipment,
+        // Cardio-specific (preserve)
+        distance: exercise.distance,
+        duration: exercise.duration,
+        calories: exercise.calories,
+        pace: exercise.pace,
+        speed: exercise.speed,
+        heartRate: exercise.heartRate,
+      );
+
+      final updatedExercises = List<LoggedExercise>.from(routine.exercises);
+      updatedExercises[exerciseIndex] = updatedExercise;
+
+      _loggedRoutines[routineIndex] = LoggedRoutine(
+        id: routine.id,
+        routineId: routine.routineId,
+        name: routine.name,
+        targetMuscles: routine.targetMuscles,
+        date: routine.date,
+        exercises: updatedExercises,
+        orderIsRequired: routine.orderIsRequired,
+      );
+
+      // ALSO UPDATE THE CORRESPONDING INDIVIDUAL EXERCISE
+      // Find the individual exercise that corresponds to this routine exercise
+      final individualExerciseIndex = _loggedExercises.indexWhere((e) =>
+          e.exerciseId == exercise.exerciseId &&
+          e.date.isAtSameMomentAs(routine.date));
+
+      if (individualExerciseIndex != -1) {
+        try {
+          final individualExercise = _loggedExercises[individualExerciseIndex];
+
+          // Update the individual exercise in Firestore
+          await _workoutFirestoreService.updateExerciseSession(
+              individualExercise.id, updatedExercise);
+
+          // Update local individual exercise cache
+          _loggedExercises[individualExerciseIndex] = LoggedExercise(
+            id: individualExercise.id, // Keep original individual exercise ID
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            targetMuscles: exercise.targetMuscles,
+            date: exercise.date,
+            individualSets: individualSets,
+            sets: null,
+            weight: null,
+            reps: null,
+            equipment: equipment ?? exercise.equipment,
+            distance: exercise.distance,
+            duration: exercise.duration,
+            calories: exercise.calories,
+            pace: exercise.pace,
+            speed: exercise.speed,
+            heartRate: exercise.heartRate,
+          );
+
+          print(
+              'Updated corresponding individual exercise: ${updatedExercise.exerciseName}');
+        } catch (e) {
+          print('Error updating corresponding individual exercise: $e');
+          // Continue even if individual exercise update fails
+        }
+      }
+
+      notifyListeners();
+      print(
+          'Routine exercise individual sets updated: ${updatedExercise.exerciseName}');
+    } catch (e) {
+      print('Error updating routine exercise individual sets: $e');
+      throw Exception('Failed to update routine exercise individual sets: $e');
+    }
+  }
+
+  // One-time migration to fix weights stored in lbs before unit conversion fix
+  Future<void> _migrateWeightUnits() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final migrationKey = 'weight_units_migrated';
+
+      // Check if migration has already been run
+      if (prefs.getBool(migrationKey) == true) {
+        return; // Migration already completed
+      }
+
+      print('Starting one-time weight units migration...');
+      bool hasChanges = false;
+
+      // Migrate logged exercises
+      for (int i = 0; i < _loggedExercises.length; i++) {
+        final exercise = _loggedExercises[i];
+        bool exerciseChanged = false;
+
+        // Migrate individual sets if they exist
+        List<WorkoutSetData>? migratedSets;
+        if (exercise.individualSets != null &&
+            exercise.individualSets!.isNotEmpty) {
+          migratedSets = [];
+          for (final set in exercise.individualSets!) {
+            // If weight seems to be in lbs (> 10 kg is suspicious for most exercises in kg)
+            // This heuristic helps identify weights that were likely stored in lbs
+            if (set.weight > 10.0) {
+              migratedSets.add(WorkoutSetData(
+                weight: set.weight * 0.453592, // Convert lbs to kg
+                reps: set.reps,
+                setNumber: set.setNumber,
+              ));
+              exerciseChanged = true;
+            } else {
+              migratedSets.add(set); // Keep as-is
+            }
+          }
+        }
+
+        // Migrate average weight if it exists and seems to be in lbs
+        double? migratedWeight = exercise.weight;
+        if (exercise.weight != null && exercise.weight! > 10.0) {
+          migratedWeight = exercise.weight! * 0.453592; // Convert lbs to kg
+          exerciseChanged = true;
+        }
+
+        double? migratedAverageWeight = exercise.averageWeight;
+        if (exercise.averageWeight != null && exercise.averageWeight! > 10.0) {
+          migratedAverageWeight =
+              exercise.averageWeight! * 0.453592; // Convert lbs to kg
+          exerciseChanged = true;
+        }
+
+        if (exerciseChanged) {
+          final migratedExercise = LoggedExercise(
+            id: exercise.id,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            targetMuscles: exercise.targetMuscles,
+            date: exercise.date,
+            individualSets: migratedSets,
+            sets: exercise.sets,
+            weight: migratedWeight,
+            reps: exercise.reps,
+            equipment: exercise.equipment,
+            distance: exercise.distance,
+            duration: exercise.duration,
+            calories: exercise.calories,
+            pace: exercise.pace,
+            speed: exercise.speed,
+            heartRate: exercise.heartRate,
+          );
+
+          _loggedExercises[i] = migratedExercise;
+          hasChanges = true;
+
+          // Update in Firestore
+          try {
+            await _workoutFirestoreService.updateExerciseSession(
+                exercise.id, migratedExercise);
+            print('Migrated exercise: ${exercise.exerciseName}');
+          } catch (e) {
+            print('Error updating migrated exercise in Firestore: $e');
+          }
+        }
+      }
+
+      // Migrate logged routines
+      for (int i = 0; i < _loggedRoutines.length; i++) {
+        final routine = _loggedRoutines[i];
+        bool routineChanged = false;
+        List<LoggedExercise> migratedExercises = [];
+
+        for (final exercise in routine.exercises) {
+          bool exerciseChanged = false;
+
+          // Migrate individual sets if they exist
+          List<WorkoutSetData>? migratedSets;
+          if (exercise.individualSets != null &&
+              exercise.individualSets!.isNotEmpty) {
+            migratedSets = [];
+            for (final set in exercise.individualSets!) {
+              if (set.weight > 10.0) {
+                migratedSets.add(WorkoutSetData(
+                  weight: set.weight * 0.453592, // Convert lbs to kg
+                  reps: set.reps,
+                  setNumber: set.setNumber,
+                ));
+                exerciseChanged = true;
+              } else {
+                migratedSets.add(set); // Keep as-is
+              }
+            }
+          }
+
+          // Migrate average weight if it exists and seems to be in lbs
+          double? migratedWeight = exercise.weight;
+          if (exercise.weight != null && exercise.weight! > 10.0) {
+            migratedWeight = exercise.weight! * 0.453592; // Convert lbs to kg
+            exerciseChanged = true;
+          }
+
+          double? migratedAverageWeight = exercise.averageWeight;
+          if (exercise.averageWeight != null &&
+              exercise.averageWeight! > 10.0) {
+            migratedAverageWeight =
+                exercise.averageWeight! * 0.453592; // Convert lbs to kg
+            exerciseChanged = true;
+          }
+
+          if (exerciseChanged) {
+            final migratedExercise = LoggedExercise(
+              id: exercise.id,
+              exerciseId: exercise.exerciseId,
+              exerciseName: exercise.exerciseName,
+              targetMuscles: exercise.targetMuscles,
+              date: exercise.date,
+              individualSets: migratedSets,
+              sets: exercise.sets,
+              weight: migratedWeight,
+              reps: exercise.reps,
+              equipment: exercise.equipment,
+              distance: exercise.distance,
+              duration: exercise.duration,
+              calories: exercise.calories,
+              pace: exercise.pace,
+              speed: exercise.speed,
+              heartRate: exercise.heartRate,
+            );
+
+            migratedExercises.add(migratedExercise);
+            routineChanged = true;
+
+            // Update routine exercise in Firestore
+            try {
+              if (exercise.individualSets != null && migratedSets != null) {
+                await _workoutFirestoreService.updateRoutineSessionExercise(
+                  routine.id,
+                  exercise.exerciseId,
+                  migratedSets,
+                  exercise.equipment,
+                );
+              }
+              print('Migrated routine exercise: ${exercise.exerciseName}');
+            } catch (e) {
+              print(
+                  'Error updating migrated routine exercise in Firestore: $e');
+            }
+          } else {
+            migratedExercises.add(exercise); // Keep as-is
+          }
+        }
+
+        if (routineChanged) {
+          _loggedRoutines[i] = LoggedRoutine(
+            id: routine.id,
+            routineId: routine.routineId,
+            name: routine.name,
+            targetMuscles: routine.targetMuscles,
+            date: routine.date,
+            exercises: migratedExercises,
+            orderIsRequired: routine.orderIsRequired,
+          );
+          hasChanges = true;
+        }
+      }
+
+      // Migrate personal records
+      for (int i = 0; i < _personalRecords.length; i++) {
+        final pr = _personalRecords[i];
+        bool prChanged = false;
+
+        double? migratedWeight = pr.weight;
+        double? migratedOneRepMax = pr.oneRepMax;
+
+        if (pr.weight != null && pr.weight! > 10.0) {
+          migratedWeight = pr.weight! * 0.453592; // Convert lbs to kg
+          prChanged = true;
+        }
+
+        if (pr.oneRepMax != null && pr.oneRepMax! > 10.0) {
+          migratedOneRepMax = pr.oneRepMax! * 0.453592; // Convert lbs to kg
+          prChanged = true;
+        }
+
+        if (prChanged) {
+          final migratedPR = PersonalRecord(
+            id: pr.id,
+            exerciseId: pr.exerciseId,
+            exerciseName: pr.exerciseName,
+            date: pr.date,
+            equipment: pr.equipment,
+            type: pr.type,
+            weight: migratedWeight,
+            reps: pr.reps,
+            sets: pr.sets,
+            oneRepMax: migratedOneRepMax,
+            distance: pr.distance,
+            duration: pr.duration,
+            pace: pr.pace,
+          );
+
+          _personalRecords[i] = migratedPR;
+          hasChanges = true;
+
+          // Update in Firestore
+          try {
+            await _workoutFirestoreService.updatePersonalRecord(
+                pr.id, migratedPR);
+            print('Migrated personal record: ${pr.exerciseName}');
+          } catch (e) {
+            print('Error updating migrated personal record in Firestore: $e');
+          }
+        }
+      }
+
+      // Mark migration as completed
+      await prefs.setBool(migrationKey, true);
+
+      if (hasChanges) {
+        notifyListeners();
+        print('Weight units migration completed successfully');
+      } else {
+        print('No weight units migration needed');
+      }
+    } catch (e) {
+      print('Error during weight units migration: $e');
     }
   }
 }

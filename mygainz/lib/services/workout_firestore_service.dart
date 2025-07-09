@@ -246,23 +246,71 @@ class WorkoutFirestoreService extends FirestoreService {
         'routineName': routine.name,
         'date': dateTimeToTimestamp(routine.date),
         'orderIsRequired': routine.orderIsRequired,
-        'exercises': routine.exercises
-            .map((exercise) => {
-                  'exerciseId': exercise.exerciseId,
-                  'exerciseName': exercise.exerciseName,
-                  'targetMuscles': exercise.targetMuscles,
-                  'equipment': exercise.equipment,
-                  'sets': exercise.sets,
-                  'weight': exercise.weight,
-                  'reps': exercise.reps,
-                  'distance': exercise.distance,
-                  'duration': exercise.duration?.inSeconds,
-                  'pace': exercise.pace,
-                  'speed': exercise.speed,
-                  'calories': exercise.calories,
-                  'heartRate': exercise.heartRate,
-                })
-            .toList(),
+        'exercises': routine.exercises.map((exercise) {
+          final exerciseData = <String, dynamic>{
+            'exerciseId': exercise.exerciseId,
+            'exerciseName': exercise.exerciseName,
+            'targetMuscles': exercise.targetMuscles,
+            'equipment': exercise.equipment,
+          };
+
+          // Handle individual sets data if available
+          if (exercise.individualSets != null &&
+              exercise.individualSets!.isNotEmpty) {
+            exerciseData['individualSets'] =
+                exercise.individualSets!.map((set) => set.toJson()).toList();
+            exerciseData['totalSets'] = exercise.individualSets!.length;
+
+            // Calculate and store aggregated data for easy querying
+            final totalWeight = exercise.individualSets!
+                .fold<double>(0, (sum, set) => sum + set.weight);
+            final totalReps = exercise.individualSets!
+                .fold<int>(0, (sum, set) => sum + set.reps);
+            exerciseData['averageWeight'] =
+                totalWeight / exercise.individualSets!.length;
+            exerciseData['averageReps'] =
+                (totalReps / exercise.individualSets!.length).round();
+            exerciseData['totalVolume'] =
+                totalWeight * totalReps; // Total weight × reps
+
+            // Find best set (highest weight × reps)
+            final bestSet = exercise.bestSet;
+            if (bestSet != null) {
+              exerciseData['bestSet'] = {
+                'weight': bestSet.weight,
+                'reps': bestSet.reps,
+                'setNumber': bestSet.setNumber,
+              };
+            }
+
+            // Legacy format for backward compatibility
+            exerciseData['sets'] = exercise.individualSets!.length;
+            exerciseData['weight'] =
+                totalWeight / exercise.individualSets!.length;
+            exerciseData['reps'] =
+                (totalReps / exercise.individualSets!.length).round();
+          } else {
+            // Legacy format when no individual sets
+            if (exercise.sets != null) exerciseData['sets'] = exercise.sets;
+            if (exercise.weight != null)
+              exerciseData['weight'] = exercise.weight;
+            if (exercise.reps != null) exerciseData['reps'] = exercise.reps;
+          }
+
+          // Add cardio-specific fields
+          if (exercise.distance != null)
+            exerciseData['distance'] = exercise.distance;
+          if (exercise.duration != null)
+            exerciseData['duration'] = exercise.duration!.inSeconds;
+          if (exercise.pace != null) exerciseData['pace'] = exercise.pace;
+          if (exercise.speed != null) exerciseData['speed'] = exercise.speed;
+          if (exercise.calories != null)
+            exerciseData['calories'] = exercise.calories;
+          if (exercise.heartRate != null)
+            exerciseData['heartRate'] = exercise.heartRate;
+
+          return exerciseData;
+        }).toList(),
         'createdAt': dateTimeToTimestamp(DateTime.now()),
       };
 
@@ -404,11 +452,99 @@ class WorkoutFirestoreService extends FirestoreService {
     }
   }
 
+  // Update routine session exercise with individual sets
+  Future<void> updateRoutineSessionExercise(
+      String routineSessionId,
+      String exerciseId,
+      List<WorkoutSetData> individualSets,
+      String equipment) async {
+    try {
+      final routineDoc = firestore
+          .collection(_routineSessionsCollection)
+          .doc(routineSessionId);
+      final routineSnapshot = await routineDoc.get();
+
+      if (!routineSnapshot.exists) {
+        throw Exception('Routine session not found');
+      }
+
+      final routineData = routineSnapshot.data()!;
+      final exercises =
+          List<Map<String, dynamic>>.from(routineData['exercises'] ?? []);
+
+      // Find the exercise to update by matching the exerciseId
+      int exerciseIndex = -1;
+      for (int i = 0; i < exercises.length; i++) {
+        if (exercises[i]['exerciseId'] == exerciseId) {
+          exerciseIndex = i;
+          break;
+        }
+      }
+
+      if (exerciseIndex == -1) {
+        throw Exception('Exercise not found in routine');
+      }
+
+      // Update the exercise data with new individual sets
+      final exerciseData = Map<String, dynamic>.from(exercises[exerciseIndex]);
+
+      // Add individual sets data
+      exerciseData['individualSets'] =
+          individualSets.map((set) => set.toJson()).toList();
+      exerciseData['totalSets'] = individualSets.length;
+
+      // Calculate and store aggregated data
+      final totalWeight =
+          individualSets.fold<double>(0, (sum, set) => sum + set.weight);
+      final totalReps =
+          individualSets.fold<int>(0, (sum, set) => sum + set.reps);
+      exerciseData['averageWeight'] = totalWeight / individualSets.length;
+      exerciseData['averageReps'] = (totalReps / individualSets.length).round();
+      exerciseData['totalVolume'] = totalWeight * totalReps;
+
+      // Find best set
+      final bestSet = individualSets.reduce((a, b) {
+        final aScore = a.weight * a.reps;
+        final bScore = b.weight * b.reps;
+        return aScore > bScore ? a : b;
+      });
+
+      exerciseData['bestSet'] = {
+        'weight': bestSet.weight,
+        'reps': bestSet.reps,
+        'setNumber': bestSet.setNumber,
+      };
+
+      // Legacy format for backward compatibility
+      exerciseData['sets'] = individualSets.length;
+      exerciseData['weight'] = totalWeight / individualSets.length;
+      exerciseData['reps'] = (totalReps / individualSets.length).round();
+
+      // Update equipment
+      exerciseData['equipment'] = equipment;
+
+      // Replace the exercise in the exercises array
+      exercises[exerciseIndex] = exerciseData;
+
+      // Update the routine document
+      await routineDoc.update({
+        'exercises': exercises,
+        'updatedAt': dateTimeToTimestamp(DateTime.now()),
+      });
+
+      print(
+          'Routine session exercise updated in Firestore: ${exerciseData['exerciseName']}');
+    } catch (e) {
+      print('Error updating routine session exercise: $e');
+      throw Exception(handleFirestoreError(e));
+    }
+  }
+
   // Delete routine session
   Future<void> deleteRoutineSession(String sessionId) async {
     try {
       await firestore
-          .collection(_workoutSessionsCollection)
+          .collection(_routineSessionsCollection)
           .doc(sessionId)
           .delete();
       print('Routine session deleted from Firestore: $sessionId');
@@ -455,6 +591,46 @@ class WorkoutFirestoreService extends FirestoreService {
       return recordDoc.id;
     } catch (e) {
       print('Error saving personal record: $e');
+      throw Exception(handleFirestoreError(e));
+    }
+  }
+
+  // Update personal record
+  Future<void> updatePersonalRecord(
+      String recordId, PersonalRecord record) async {
+    try {
+      final recordDoc =
+          firestore.collection(_personalRecordsCollection).doc(recordId);
+
+      final recordData = {
+        'userId': authenticatedUserId,
+        'exerciseId': record.exerciseId,
+        'exerciseName': record.exerciseName,
+        'equipment': record.equipment,
+        'date': dateTimeToTimestamp(record.date),
+        'type': record.type.toString(),
+        'updatedAt': dateTimeToTimestamp(DateTime.now()),
+      };
+
+      // Add strength-specific fields
+      if (record.weight != null) recordData['weight'] = record.weight;
+      if (record.reps != null) recordData['reps'] = record.reps;
+      if (record.sets != null) recordData['sets'] = record.sets;
+      if (record.oneRepMax != null) recordData['oneRepMax'] = record.oneRepMax;
+
+      // Add cardio-specific fields
+      if (record.distance != null) recordData['distance'] = record.distance;
+      if (record.duration != null)
+        recordData['duration'] = record.duration!.inSeconds;
+      if (record.pace != null) recordData['pace'] = record.pace;
+      if (record.speed != null) recordData['speed'] = record.speed;
+      if (record.calories != null) recordData['calories'] = record.calories;
+      if (record.heartRate != null) recordData['heartRate'] = record.heartRate;
+
+      await recordDoc.update(recordData);
+      print('Personal record updated in Firestore: ${record.exerciseName}');
+    } catch (e) {
+      print('Error updating personal record: $e');
       throw Exception(handleFirestoreError(e));
     }
   }
@@ -599,16 +775,35 @@ class WorkoutFirestoreService extends FirestoreService {
     final exercisesData = data['exercises'] as List<dynamic>? ?? [];
     final exercises = exercisesData.map((exerciseData) {
       final exData = exerciseData as Map<String, dynamic>;
+
+      // Parse individual sets if available
+      List<WorkoutSetData>? individualSets;
+      if (exData['individualSets'] != null) {
+        final setsData = exData['individualSets'] as List;
+        individualSets = setsData
+            .map((setData) =>
+                WorkoutSetData.fromJson(setData as Map<String, dynamic>))
+            .toList();
+      }
+
       return LoggedExercise(
         id: '${id}_${exercisesData.indexOf(exerciseData)}',
         exerciseId: exData['exerciseId'] ?? '',
         exerciseName: exData['exerciseName'] ?? '',
         targetMuscles: List<String>.from(exData['targetMuscles'] ?? []),
         equipment: exData['equipment'] ?? '',
-        sets: exData['sets'] ?? 0,
         date: timestampToDateTime(data['date']) ?? DateTime.now(),
-        weight: exData['weight']?.toDouble(),
-        reps: exData['reps'],
+
+        // Individual sets data
+        individualSets: individualSets,
+
+        // Legacy aggregated data (for backward compatibility)
+        sets: exData['sets'] ?? exData['totalSets'],
+        weight:
+            exData['weight']?.toDouble() ?? exData['averageWeight']?.toDouble(),
+        reps: exData['reps'] ?? exData['averageReps'],
+
+        // Cardio data
         distance: exData['distance']?.toDouble(),
         duration: exData['duration'] != null
             ? Duration(seconds: exData['duration'])

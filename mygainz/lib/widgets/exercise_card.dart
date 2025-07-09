@@ -25,97 +25,88 @@ class ExerciseCard extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
           color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Exercise name - make it flexible to prevent overflow
-                    Expanded(
-                      child: Text(
-                        exercise.exerciseName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+          child: InkWell(
+            onTap: showEditButton ? () => _showEditDialog(context) : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Exercise name - make it flexible to prevent overflow
+                      Expanded(
+                        child: Text(
+                          exercise.exerciseName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Right side content - wrap in a constrained container
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Equipment type
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                      const SizedBox(width: 8),
+                      // Right side content - wrap in a constrained container
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Equipment type
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              exercise.equipment,
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            exercise.equipment,
+                          const SizedBox(width: 6),
+                          // Sets
+                          Text(
+                            '${exercise.totalSets}x',
                             style: TextStyle(
                               color: Colors.grey.shade700,
-                              fontSize: 11,
+                              fontSize: 12,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Sets
-                        Text(
-                          '${exercise.totalSets}x',
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (showEditButton) ...[
-                          const SizedBox(width: 4),
-                          IconButton(
-                            onPressed: () => _showEditDialog(context),
-                            icon: const Icon(Icons.edit),
-                            iconSize: 18,
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
+
+                          if (onDelete != null) ...[
+                            const SizedBox(width: 2),
+                            IconButton(
+                              onPressed: onDelete,
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              iconSize: 18,
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
                             ),
-                            color: const Color(0xFF1B2027),
-                          ),
+                          ],
                         ],
-                        if (onDelete != null) ...[
-                          const SizedBox(width: 2),
-                          IconButton(
-                            onPressed: onDelete,
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            iconSize: 18,
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Muscle groups
-                Text(
-                  exercise.targetMuscles.join(', '),
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 12),
-                _buildExerciseStats(context, unitsProvider),
-              ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Muscle groups
+                  Text(
+                    exercise.targetMuscles.join(', '),
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildExerciseStats(context, unitsProvider),
+                ],
+              ),
             ),
           ),
         );
@@ -241,11 +232,17 @@ class ExerciseCard extends StatelessWidget {
     List<TextEditingController> weightControllers = [];
     List<TextEditingController> repsControllers = [];
     String selectedEquipment = exercise.equipment;
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
 
-    // Initialize controllers with existing set data
+    // Initialize controllers with existing set data (convert from kg to display unit)
     for (int i = 0; i < exercise.individualSets!.length; i++) {
       final set = exercise.individualSets![i];
-      weightControllers.add(TextEditingController(text: set.weight.toString()));
+      double displayWeight = set.weight; // Stored in kg
+      if (unitsProvider.weightUnit == 'lbs') {
+        displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+      }
+      weightControllers
+          .add(TextEditingController(text: displayWeight.toStringAsFixed(1)));
       repsControllers.add(TextEditingController(text: set.reps.toString()));
     }
 
@@ -470,6 +467,8 @@ class ExerciseCard extends StatelessWidget {
 
                       // Validate and collect sets data
                       List<WorkoutSetData> newSets = [];
+                      final unitsProvider =
+                          Provider.of<UnitsProvider>(context, listen: false);
 
                       for (int i = 0; i < weightControllers.length; i++) {
                         final weight =
@@ -480,8 +479,14 @@ class ExerciseCard extends StatelessWidget {
                             reps != null &&
                             weight > 0 &&
                             reps > 0) {
+                          // Convert weight to kg (base unit) for storage
+                          double weightInKg = weight;
+                          if (unitsProvider.weightUnit == 'lbs') {
+                            weightInKg = weight * 0.453592; // Convert lbs to kg
+                          }
+
                           newSets.add(WorkoutSetData(
-                            weight: weight,
+                            weight: weightInKg, // Always store in kg
                             reps: reps,
                             setNumber: i + 1,
                           ));
@@ -548,8 +553,16 @@ class ExerciseCard extends StatelessWidget {
   }
 
   void _showSimpleStrengthEditDialog(BuildContext context) {
+    final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
+
+    // Convert stored weight (kg) to display weight for the current unit
+    double? displayWeight = exercise.averageWeight;
+    if (displayWeight != null && unitsProvider.weightUnit == 'lbs') {
+      displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+    }
+
     final weightController =
-        TextEditingController(text: exercise.averageWeight?.toString() ?? '');
+        TextEditingController(text: displayWeight?.toStringAsFixed(1) ?? '');
     final repsController =
         TextEditingController(text: exercise.averageReps?.toString() ?? '');
     final setsController =
@@ -646,11 +659,17 @@ class ExerciseCard extends StatelessWidget {
                     final sets = int.tryParse(setsController.text);
 
                     if (weight != null && reps != null && sets != null) {
+                      // Convert weight to kg (base unit) for storage
+                      double weightInKg = weight;
+                      if (unitsProvider.weightUnit == 'lbs') {
+                        weightInKg = weight * 0.453592; // Convert lbs to kg
+                      }
+
                       final workoutProvider =
                           Provider.of<WorkoutProvider>(context, listen: false);
                       await workoutProvider.updateLoggedExercise(
                         exercise.id,
-                        weight: weight,
+                        weight: weightInKg, // Always store in kg
                         reps: reps,
                         equipment: selectedEquipment,
                         sets: sets,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/workout_provider.dart';
+import '../providers/units_provider.dart';
 import '../models/personal_record.dart';
 
 class PersonalRecordsDashboard extends StatelessWidget {
@@ -59,72 +60,87 @@ class PersonalRecordsDashboard extends StatelessWidget {
   }
 
   Widget _buildStrongestLiftCard(PersonalRecord strongestLift) {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        // Convert stored weight (kg) to display weight for current unit
+        double? displayWeight = strongestLift.weight;
+        double? displayOneRepMax = strongestLift.oneRepMax;
+        if (displayWeight != null && unitsProvider.weightUnit == 'lbs') {
+          displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+        }
+        if (displayOneRepMax != null && unitsProvider.weightUnit == 'lbs') {
+          displayOneRepMax = displayOneRepMax / 0.453592; // Convert kg to lbs
+        }
+
+        return Card(
+          color: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.emoji_events,
-                  color: Colors.amber.shade600,
-                  size: 24,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.emoji_events,
+                      color: Colors.amber.shade600,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Strongest Lift',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Strongest Lift',
-                  style: TextStyle(
-                    fontSize: 16,
+                const SizedBox(height: 12),
+                Text(
+                  strongestLift.exerciseName,
+                  style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _buildMetricChip(
+                      '${displayWeight?.toStringAsFixed(1) ?? 'N/A'}${unitsProvider.weightUnit}',
+                      Colors.blue.shade100,
+                      Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildMetricChip(
+                      '${strongestLift.reps ?? 'N/A'} reps',
+                      Colors.green.shade100,
+                      Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildMetricChip(
+                      '1RM: ${displayOneRepMax?.toStringAsFixed(1) ?? 'N/A'}${unitsProvider.weightUnit}',
+                      Colors.orange.shade100,
+                      Colors.orange.shade700,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Achieved on ${_formatDate(strongestLift.date)}',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              strongestLift.exerciseName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildMetricChip(
-                  '${strongestLift.weight?.toStringAsFixed(1) ?? 'N/A'}kg',
-                  Colors.blue.shade100,
-                  Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                _buildMetricChip(
-                  '${strongestLift.reps ?? 'N/A'} reps',
-                  Colors.green.shade100,
-                  Colors.green.shade700,
-                ),
-                const SizedBox(width: 8),
-                _buildMetricChip(
-                  '1RM: ${strongestLift.oneRepMax?.toStringAsFixed(1) ?? 'N/A'}kg',
-                  Colors.orange.shade100,
-                  Colors.orange.shade700,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Achieved on ${_formatDate(strongestLift.date)}',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -146,74 +162,90 @@ class PersonalRecordsDashboard extends StatelessWidget {
   }
 
   Widget _buildPRCard(PersonalRecord pr) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                _getPRIcon(pr.type),
-                color: Colors.green.shade600,
-                size: 20,
-              ),
+    return Consumer<UnitsProvider>(
+      builder: (context, unitsProvider, child) {
+        // Convert stored one rep max (kg) to display weight for current unit
+        double? displayOneRepMax = pr.oneRepMax;
+        if (displayOneRepMax != null && unitsProvider.weightUnit == 'lbs') {
+          displayOneRepMax = displayOneRepMax / 0.453592; // Convert kg to lbs
+        }
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          color: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    _getPRIcon(pr.type),
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pr.exerciseName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      _buildPRValue(pr, unitsProvider),
+                    ],
+                  ),
+                ),
+                if (pr.type == PersonalRecordType.weight)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${displayOneRepMax?.toStringAsFixed(1) ?? 'N/A'}${unitsProvider.weightUnit}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      Text(
+                        '1RM',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    pr.exerciseName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  _buildPRValue(pr),
-                ],
-              ),
-            ),
-            if (pr.type == PersonalRecordType.weight)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${pr.oneRepMax?.toStringAsFixed(1) ?? 'N/A'}kg',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  Text(
-                    '1RM',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildPRValue(PersonalRecord pr) {
+  Widget _buildPRValue(PersonalRecord pr, UnitsProvider unitsProvider) {
     String value;
     switch (pr.type) {
       case PersonalRecordType.weight:
+        // Convert stored weight (kg) to display weight for current unit
+        double? displayWeight = pr.weight;
+        if (displayWeight != null && unitsProvider.weightUnit == 'lbs') {
+          displayWeight = displayWeight / 0.453592; // Convert kg to lbs
+        }
         value =
-            '${pr.weight?.toStringAsFixed(1) ?? 'N/A'} kg × ${pr.reps ?? 'N/A'} reps';
+            '${displayWeight?.toStringAsFixed(1) ?? 'N/A'} ${unitsProvider.weightUnit} × ${pr.reps ?? 'N/A'} reps';
         break;
       case PersonalRecordType.distance:
         value = '${pr.distance?.toStringAsFixed(2) ?? 'N/A'} km';

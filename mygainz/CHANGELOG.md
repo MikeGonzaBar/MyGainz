@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2024-12-23
+
+### Fixed
+- **Critical Unit Conversion Bug** - Resolved major issue where weights were incorrectly stored in user's input unit instead of being converted to kg (base unit)
+- **Weight Display Inconsistencies** - Fixed weight values showing incorrectly when switching between kg and lbs units
+- **Personal Records Display** - Fixed personal record displays to show correct weight values in user's preferred unit
+- **Exercise Card Weight Display** - Updated all exercise cards to properly convert stored kg values to user's display unit
+- **Routine Card Weight Display** - Fixed routine exercise displays to show accurate weight conversions
+- **Cross-Component Unit Handling** - Standardized unit conversion logic across all weight-displaying components
+
+### Added
+- **Automatic Data Migration** - One-time migration script to fix existing incorrectly stored weight data
+- **Heuristic Data Detection** - Smart detection system to identify weights that were stored in lbs vs kg
+- **Migration Safety Checks** - Conservative approach to preserve data integrity during migration
+- **Migration Logging** - Comprehensive logging to track migration progress and results
+- **SharedPreferences Migration Flag** - Prevents migration from running multiple times
+
+### Enhanced
+- **Standardized Weight Storage** - All weights now consistently stored in kg regardless of user's input unit
+- **Smart Display Conversion** - Automatic conversion of stored kg values to user's preferred display unit
+- **Unit Switching Reliability** - Users can now confidently switch between kg and lbs without data corruption
+- **Cross-Device Consistency** - Same weight values display correctly on all devices regardless of unit preference
+- **Personal Records Accuracy** - PR calculations and displays now work correctly with proper unit conversions
+
+### Technical Improvements
+- **WorkoutSetData.fromWorkoutSet()** - Added currentWeightUnit parameter for proper input conversion
+- **Enhanced UnitsProvider** - Improved formatWeight() method for consistent display formatting
+- **Exercise Edit Dialogs** - Updated to convert weights properly when editing existing exercises
+- **Routine Edit Dialogs** - Fixed weight initialization and conversion in routine exercise editing
+- **Personal Records Service** - Updated to handle weight conversions for PR calculations
+- **Firestore Service** - Added updatePersonalRecord() method for migration support
+
+### Migration Details
+- **Automatic Execution** - Migration runs once on app startup after data loading
+- **Threshold Detection** - Uses >10kg threshold to identify weights likely stored in lbs
+- **Comprehensive Coverage** - Migrates logged exercises, routine exercises, and personal records
+- **Firestore Synchronization** - Updates both local cache and cloud database
+- **Backup Safety** - Migration preserves original data structure while fixing weight values
+
 ## [2.0.0] - 2024-12-22
 
 ### Added

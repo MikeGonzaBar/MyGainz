@@ -25,24 +25,77 @@ class MainFrame extends StatefulWidget {
 
 class _MainFrameState extends State<MainFrame> {
   int _selectedIndex = 0;
+  late PageController _pageController;
+
   static final List<Widget> _widgetOptions = <Widget>[
-    HomePage(),
+    const HomePage(),
     const ExercisePage(),
     const LogPage(),
     const ProgressPage(),
     const ProfilePage(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (index != _selectedIndex) {
+      setState(() {
+        _selectedIndex = index;
+      });
+
+      // Animate page transition
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // Helper method to build animated icons with proper colors
+  Widget _buildAnimatedIcon({
+    required String assetPath,
+    required bool isSelected,
+    required IconData fallbackIcon,
+  }) {
+    final Color iconColor =
+        isSelected ? const Color.fromARGB(255, 170, 222, 247) : Colors.white;
+
+    return AnimatedScale(
+      scale: isSelected ? 1.1 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: assetPath.isNotEmpty
+          ? ColorFiltered(
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              child: Image.asset(
+                assetPath,
+                width: 24,
+                height: 24,
+              ),
+            )
+          : Icon(
+              fallbackIcon,
+              color: iconColor,
+              size: 24,
+            ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B2027),
         title: Row(
@@ -92,61 +145,81 @@ class _MainFrameState extends State<MainFrame> {
           ),
         ],
       ),
-      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
-              child: Image.asset(
-                'assets/icons/ui_icons/home.png',
-                width: 24,
-                height: 24,
+      body: PageView(
+        controller: _pageController,
+        children: _widgetOptions,
+        onPageChanged: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
+      bottomNavigationBar: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: _buildAnimatedIcon(
+                assetPath: 'assets/icons/ui_icons/home.png',
+                isSelected: _selectedIndex == 0,
+                fallbackIcon: Icons.home,
               ),
+              label: 'Home',
             ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
-              child: Image.asset(
-                'assets/icons/ui_icons/dumbell.png',
-                width: 24,
-                height: 24,
+            BottomNavigationBarItem(
+              icon: _buildAnimatedIcon(
+                assetPath: 'assets/icons/ui_icons/dumbell.png',
+                isSelected: _selectedIndex == 1,
+                fallbackIcon: Icons.fitness_center,
               ),
+              label: 'Exercise',
             ),
-            label: 'Exercise',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Log'),
-          BottomNavigationBarItem(
-            icon: ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
-              child: Image.asset(
-                'assets/icons/ui_icons/statistic.png',
-                width: 24,
-                height: 24,
+            BottomNavigationBarItem(
+              icon: AnimatedScale(
+                scale: _selectedIndex == 2 ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                child: Icon(
+                  Icons.add,
+                  color: _selectedIndex == 2
+                      ? const Color.fromARGB(255, 170, 222, 247)
+                      : Colors.white,
+                ),
               ),
+              label: 'Log',
             ),
-            label: 'Progress',
-          ),
-          BottomNavigationBarItem(
-            icon: ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
-              child: Image.asset(
-                'assets/icons/ui_icons/user.png',
-                width: 24,
-                height: 24,
+            BottomNavigationBarItem(
+              icon: _buildAnimatedIcon(
+                assetPath: 'assets/icons/ui_icons/statistic.png',
+                isSelected: _selectedIndex == 3,
+                fallbackIcon: Icons.bar_chart,
               ),
+              label: 'Progress',
             ),
-            label: 'Profile',
+            BottomNavigationBarItem(
+              icon: _buildAnimatedIcon(
+                assetPath: 'assets/icons/ui_icons/user.png',
+                isSelected: _selectedIndex == 4,
+                fallbackIcon: Icons.person,
+              ),
+              label: 'Profile',
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: const Color.fromARGB(255, 170, 222, 247),
+          unselectedItemColor: Colors.white,
+          backgroundColor: const Color(0xFF1B2027),
+          onTap: _onItemTapped,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
           ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color.fromARGB(255, 170, 222, 247),
-        unselectedItemColor: Colors.white,
-        backgroundColor: Color(0xFF1B2027),
-        onTap: _onItemTapped,
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w400,
+            fontSize: 11,
+          ),
+        ),
       ),
     );
   }

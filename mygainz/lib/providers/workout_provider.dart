@@ -3,7 +3,6 @@ import '../models/personal_record.dart';
 import '../models/workout_set.dart';
 import '../services/personal_record_service.dart';
 import '../services/workout_firestore_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoggedExercise {
   final String id;
@@ -348,7 +347,7 @@ class WorkoutProvider with ChangeNotifier {
             try {
               // Create individual exercise
               final individualExercise = LoggedExercise(
-                id: DateTime.now().millisecondsSinceEpoch.toString() + '_ind',
+                id: '${DateTime.now().millisecondsSinceEpoch}_ind',
                 exerciseId: exercise.exerciseId,
                 exerciseName: exercise.exerciseName,
                 targetMuscles: exercise.targetMuscles,
@@ -1239,7 +1238,7 @@ class WorkoutProvider with ChangeNotifier {
           await _generateAchievements();
 
           print(
-              'New strength PR created: ${exercise.exerciseName} - ${weightForPR}kg × ${repsForPR} reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
+              'New strength PR created: ${exercise.exerciseName} - $weightForPR kg × $repsForPR reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
         } catch (e) {
           print('Error saving personal record to Firestore: $e');
         }

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2024-12-29
+
+### Fixed
+- **Critical setState After Dispose Error** - Resolved crashes when switching tabs during async operations in LogPage
+- **Bottom Navigation Icon Colors** - Fixed icon colors not matching selected/unselected text colors 
+- **Memory Leaks** - Added proper mounted checks before all setState calls in async operations
+- **Tab Switching Crashes** - Eliminated Flutter errors when rapidly navigating between screens
+- **Animation Stuttering** - Replaced complex animation controller with optimized AnimatedScale widgets
+
+### Added
+- **Smooth Bottom Navigation Animations** - Professional scaling animations when switching between tabs (10% scale increase)
+- **Page Transition Animations** - Fluid horizontal sliding transitions using PageView controller
+- **Swipe Navigation** - Users can now swipe left/right between pages in addition to tapping bottom nav
+- **Enhanced Visual Feedback** - Improved tab selection animations with proper easing curves
+- **Async Safety Guards** - Comprehensive mounted checks protecting all BuildContext usage in callbacks
+
+### Enhanced
+- **Navigation Performance** - Faster 250ms transitions with Curves.easeOut for smoother feel
+- **Icon Visual Consistency** - All bottom navigation icons now properly sync colors with text (light blue when selected, white when unselected)
+- **Animation Optimization** - Removed conflicting animation controllers that caused stuttering
+- **Code Modernization** - Updated all deprecated Firebase and Flutter method calls for future compatibility
+
+### Technical Improvements
+- **Deprecated Method Fixes** - Replaced `fetchSignInMethodsForEmail`, `updateEmail`, `onPopInvoked`, `withOpacity` with modern alternatives
+- **String Interpolation** - Modernized string composition throughout codebase for better performance
+- **Error Handling** - Enhanced async operation safety and error recovery mechanisms
+- **Memory Management** - Proper widget lifecycle management preventing memory leaks
+
 ## [2.0.2] - 2024-12-29
 
 ### Fixed

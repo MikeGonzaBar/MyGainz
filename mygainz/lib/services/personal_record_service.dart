@@ -155,9 +155,9 @@ class PersonalRecordService {
 
           achievements.add(Achievement(
             id: '${exerciseName.toLowerCase().replaceAll(' ', '_')}_${milestone.toInt()}kg',
-            title: '${milestone.toInt()}kg ${exerciseName}!',
+            title: '${milestone.toInt()}kg $exerciseName!',
             description:
-                'You hit ${milestone.toInt()}kg on ${exerciseName} - that\'s ${plates} plates!',
+                'You hit ${milestone.toInt()}kg on $exerciseName - that\'s $plates plates!',
             achievedDate: firstMilestone.date,
             type: AchievementType.milestone,
             exerciseName: exerciseName,

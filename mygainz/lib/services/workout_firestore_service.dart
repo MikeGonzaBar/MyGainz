@@ -215,16 +215,20 @@ class WorkoutFirestoreService extends FirestoreService {
       }
 
       // Add cardio-specific fields
-      if (exercise.distance != null)
+      if (exercise.distance != null) {
         sessionData['distance'] = exercise.distance;
-      if (exercise.duration != null)
+      }
+      if (exercise.duration != null) {
         sessionData['duration'] = exercise.duration!.inSeconds;
+      }
       if (exercise.pace != null) sessionData['pace'] = exercise.pace;
       if (exercise.speed != null) sessionData['speed'] = exercise.speed;
-      if (exercise.calories != null)
+      if (exercise.calories != null) {
         sessionData['calories'] = exercise.calories;
-      if (exercise.heartRate != null)
+      }
+      if (exercise.heartRate != null) {
         sessionData['heartRate'] = exercise.heartRate;
+      }
 
       await sessionDoc.set(sessionData);
       print('Exercise session logged to Firestore: ${exercise.exerciseName}');
@@ -292,22 +296,27 @@ class WorkoutFirestoreService extends FirestoreService {
           } else {
             // Legacy format when no individual sets
             if (exercise.sets != null) exerciseData['sets'] = exercise.sets;
-            if (exercise.weight != null)
+            if (exercise.weight != null) {
               exerciseData['weight'] = exercise.weight;
+            }
             if (exercise.reps != null) exerciseData['reps'] = exercise.reps;
           }
 
           // Add cardio-specific fields
-          if (exercise.distance != null)
+          if (exercise.distance != null) {
             exerciseData['distance'] = exercise.distance;
-          if (exercise.duration != null)
+          }
+          if (exercise.duration != null) {
             exerciseData['duration'] = exercise.duration!.inSeconds;
+          }
           if (exercise.pace != null) exerciseData['pace'] = exercise.pace;
           if (exercise.speed != null) exerciseData['speed'] = exercise.speed;
-          if (exercise.calories != null)
+          if (exercise.calories != null) {
             exerciseData['calories'] = exercise.calories;
-          if (exercise.heartRate != null)
+          }
+          if (exercise.heartRate != null) {
             exerciseData['heartRate'] = exercise.heartRate;
+          }
 
           return exerciseData;
         }).toList(),
@@ -419,16 +428,20 @@ class WorkoutFirestoreService extends FirestoreService {
       }
 
       // Add cardio-specific fields
-      if (exercise.distance != null)
+      if (exercise.distance != null) {
         sessionData['distance'] = exercise.distance;
-      if (exercise.duration != null)
+      }
+      if (exercise.duration != null) {
         sessionData['duration'] = exercise.duration!.inSeconds;
+      }
       if (exercise.pace != null) sessionData['pace'] = exercise.pace;
       if (exercise.speed != null) sessionData['speed'] = exercise.speed;
-      if (exercise.calories != null)
+      if (exercise.calories != null) {
         sessionData['calories'] = exercise.calories;
-      if (exercise.heartRate != null)
+      }
+      if (exercise.heartRate != null) {
         sessionData['heartRate'] = exercise.heartRate;
+      }
 
       await sessionDoc.update(sessionData);
       print('Exercise session updated in Firestore: ${exercise.exerciseName}');
@@ -579,8 +592,9 @@ class WorkoutFirestoreService extends FirestoreService {
 
       // Add cardio-specific fields
       if (record.distance != null) recordData['distance'] = record.distance;
-      if (record.duration != null)
+      if (record.duration != null) {
         recordData['duration'] = record.duration!.inSeconds;
+      }
       if (record.pace != null) recordData['pace'] = record.pace;
       if (record.speed != null) recordData['speed'] = record.speed;
       if (record.calories != null) recordData['calories'] = record.calories;
@@ -620,8 +634,9 @@ class WorkoutFirestoreService extends FirestoreService {
 
       // Add cardio-specific fields
       if (record.distance != null) recordData['distance'] = record.distance;
-      if (record.duration != null)
+      if (record.duration != null) {
         recordData['duration'] = record.duration!.inSeconds;
+      }
       if (record.pace != null) recordData['pace'] = record.pace;
       if (record.speed != null) recordData['speed'] = record.speed;
       if (record.calories != null) recordData['calories'] = record.calories;

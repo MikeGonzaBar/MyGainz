@@ -166,26 +166,30 @@ class _LogPageState extends State<LogPage> {
         equipment: [selectedEquipment],
       );
 
-      setState(() {
-        selectedExercise = savedExercise;
-        availableExercises.add(savedExercise); // Add to available exercises
-        showSuggestions = false;
-      });
+      if (mounted) {
+        setState(() {
+          selectedExercise = savedExercise;
+          availableExercises.add(savedExercise); // Add to available exercises
+          showSuggestions = false;
+        });
 
-      _searchFocusNode.unfocus();
+        _searchFocusNode.unfocus();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Exercise "$exerciseName" created and selected!')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Exercise "$exerciseName" created and selected!')),
+        );
+      }
     } catch (e) {
       print('Error saving new exercise: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error creating exercise: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating exercise: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -515,18 +519,20 @@ class _LogPageState extends State<LogPage> {
         _workoutFirestoreService.getUserRoutines(),
       ]);
 
-      setState(() {
-        availableExercises = results[0] as List<Exercise>;
-        availableRoutines = results[1] as List<Routine>;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          availableExercises = results[0] as List<Exercise>;
+          availableRoutines = results[1] as List<Routine>;
+          _isLoading = false;
+        });
+      }
 
       print(
           'Loaded ${availableExercises.length} exercises and ${availableRoutines.length} routines for logging');
     } catch (e) {
-      setState(() => _isLoading = false);
-      print('Error loading user data for logging: $e');
       if (mounted) {
+        setState(() => _isLoading = false);
+        print('Error loading user data for logging: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading data: $e'),
@@ -1384,27 +1390,31 @@ class _LogPageState extends State<LogPage> {
                         exerciseIds: selectedExerciseIds,
                       );
 
-                      setState(() {
-                        availableRoutines.add(savedRoutine);
-                      });
+                      if (mounted) {
+                        setState(() {
+                          availableRoutines.add(savedRoutine);
+                        });
 
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Routine "${savedRoutine.name}" created successfully! '
-                            '${orderIsRequired ? "(Order required)" : "(Flexible order)"}',
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Routine "${savedRoutine.name}" created successfully! '
+                              '${orderIsRequired ? "(Order required)" : "(Flexible order)"}',
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     } catch (e) {
                       print('Error saving new routine: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error creating routine: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error creating routine: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     }
                   },
                   child: const Text('Create'),
@@ -1820,7 +1830,7 @@ class _LogPageState extends State<LogPage> {
               if (averageWeight > 0 && averageReps > 0) ...[
                 const SizedBox(width: 4),
                 _buildStatChip(
-                  '${unitsProvider.formatWeight(averageWeight)} × ${averageReps}',
+                  '${unitsProvider.formatWeight(averageWeight)} × $averageReps',
                   Icons.fitness_center,
                 ),
               ] else ...[

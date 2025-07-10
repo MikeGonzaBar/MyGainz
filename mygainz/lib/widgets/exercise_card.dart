@@ -272,7 +272,7 @@ class ExerciseCard extends StatelessWidget {
       builder: (BuildContext context) {
         return PopScope(
           canPop: true,
-          onPopInvoked: (didPop) {
+          onPopInvokedWithResult: (didPop, result) {
             if (didPop) {
               disposeAllControllers();
             }

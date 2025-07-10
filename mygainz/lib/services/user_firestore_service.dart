@@ -75,8 +75,9 @@ class UserFirestoreService extends FirestoreService {
       final updates = <String, dynamic>{};
       if (weightUnit != null) updates['preferences.weightUnit'] = weightUnit;
       if (heightUnit != null) updates['preferences.heightUnit'] = heightUnit;
-      if (distanceUnit != null)
+      if (distanceUnit != null) {
         updates['preferences.distanceUnit'] = distanceUnit;
+      }
 
       if (updates.isNotEmpty) {
         updates['personalInfo.updatedAt'] = dateTimeToTimestamp(DateTime.now());
@@ -103,10 +104,12 @@ class UserFirestoreService extends FirestoreService {
       final updates = <String, dynamic>{};
       if (height != null) updates['fitnessInfo.height'] = height;
       if (weight != null) updates['fitnessInfo.weight'] = weight;
-      if (fatPercentage != null)
+      if (fatPercentage != null) {
         updates['fitnessInfo.fatPercentage'] = fatPercentage;
-      if (musclePercentage != null)
+      }
+      if (musclePercentage != null) {
         updates['fitnessInfo.musclePercentage'] = musclePercentage;
+      }
 
       if (updates.isNotEmpty) {
         updates['personalInfo.updatedAt'] = dateTimeToTimestamp(DateTime.now());
@@ -132,8 +135,9 @@ class UserFirestoreService extends FirestoreService {
       final updates = <String, dynamic>{};
       if (name != null) updates['personalInfo.name'] = name;
       if (lastName != null) updates['personalInfo.lastName'] = lastName;
-      if (dateOfBirth != null)
+      if (dateOfBirth != null) {
         updates['personalInfo.dateOfBirth'] = dateTimeToTimestamp(dateOfBirth);
+      }
 
       if (updates.isNotEmpty) {
         updates['personalInfo.updatedAt'] = dateTimeToTimestamp(DateTime.now());

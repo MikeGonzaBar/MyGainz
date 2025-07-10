@@ -24,9 +24,6 @@ flutter pub get
 echo "🔨 Building release APK..."
 flutter build apk --release
 
-# Build debug APK
-echo "🔨 Building debug APK..."
-flutter build apk --debug
 
 # Create releases directory if it doesn't exist
 mkdir -p ../releases
@@ -34,7 +31,6 @@ mkdir -p ../releases
 # Copy APKs to releases directory with version naming
 echo "📋 Copying APKs to releases directory..."
 cp build/app/outputs/flutter-apk/app-release.apk "../releases/MyGainz-v${VERSION}-release.apk"
-cp build/app/outputs/flutter-apk/app-debug.apk "../releases/MyGainz-v${VERSION}-debug.apk"
 
 # Show file sizes
 echo "✅ Build completed successfully!"

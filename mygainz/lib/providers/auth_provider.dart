@@ -149,7 +149,6 @@ class AuthProvider with ChangeNotifier {
       print('  - Phone Number: ${providerData.phoneNumber}');
       print('  - Photo URL: ${providerData.photoURL}');
     }
-    print('Multi Factor Status: MFA available: ${user.multiFactor != null}');
     print('================================');
   }
 
@@ -390,15 +389,12 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Check if email exists (for validation)
+  // NOTE: fetchSignInMethodsForEmail is deprecated for security reasons.
+  // We now rely on Firebase registration errors to handle duplicate emails.
   Future<bool> emailExists(String email) async {
-    try {
-      final methods =
-          await _firebaseAuth.fetchSignInMethodsForEmail(email.trim());
-      return methods.isNotEmpty;
-    } catch (e) {
-      print('Error checking email existence: $e');
-      return false;
-    }
+    // Always return false - let Firebase handle email validation during registration
+    // This prevents email enumeration attacks
+    return false;
   }
 
   // Delete account
@@ -510,10 +506,11 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Update email in Firebase if changed
+      // Update email in Firebase if changed (requires verification)
       if (email != null &&
           email.toLowerCase() != _currentUser!.email.toLowerCase()) {
-        await firebaseUser.updateEmail(email.toLowerCase());
+        await firebaseUser.verifyBeforeUpdateEmail(email.toLowerCase());
+        // Note: Email will only be updated after user verifies the new email
       }
 
       // Update display name in Firebase if name changed

@@ -137,13 +137,6 @@ class RoutineCard extends StatelessWidget {
       displayWeight = displayWeight / 0.453592; // Convert kg to lbs
     }
 
-    final weightController =
-        TextEditingController(text: displayWeight?.toStringAsFixed(1) ?? '');
-    final repsController =
-        TextEditingController(text: exercise.averageReps?.toString() ?? '');
-    final setsController =
-        TextEditingController(text: exercise.totalSets.toString());
-
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(

@@ -4,6 +4,7 @@ import '../providers/workout_provider.dart';
 import '../providers/units_provider.dart';
 import '../utils/date_helpers.dart';
 import '../models/workout_set.dart';
+import '../utils/equipment_options.dart';
 import 'muscle_icon.dart';
 
 class RoutineCard extends StatelessWidget {
@@ -249,13 +250,7 @@ class RoutineCard extends StatelessWidget {
       }
     }
 
-    final equipmentOptions = [
-      'Barbell',
-      'Dumbbell',
-      'Kettlebell',
-      'Machine',
-      'Bodyweight',
-    ];
+    final equipmentOptions = EquipmentOptions.basic;
 
     // Function to safely dispose all controllers
     void disposeAllControllers() {
@@ -287,7 +282,9 @@ class RoutineCard extends StatelessWidget {
                   children: [
                     // Equipment dropdown
                     DropdownButtonFormField<String>(
-                      value: selectedEquipment,
+                      value: equipmentOptions.contains(selectedEquipment)
+                          ? selectedEquipment
+                          : equipmentOptions.first,
                       decoration: const InputDecoration(
                         labelText: 'Equipment',
                         border: OutlineInputBorder(),

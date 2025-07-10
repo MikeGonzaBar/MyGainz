@@ -17,15 +17,23 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildOverviewCard(),
-              const SizedBox(height: 16),
-              _buildRecentActivityCard(),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () async {
+            final workoutProvider =
+                Provider.of<WorkoutProvider>(context, listen: false);
+            await workoutProvider.refreshWorkouts();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildOverviewCard(),
+                const SizedBox(height: 16),
+                _buildRecentActivityCard(),
+              ],
+            ),
           ),
         ),
       ),
@@ -47,7 +55,6 @@ class HomePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionHeader(context, 'Overview'),
-                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [

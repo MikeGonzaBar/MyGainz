@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../providers/workout_provider.dart';
+import '../utils/equipment_options.dart';
+import '../utils/muscle_group_options.dart';
 import '../widgets/time_period_filter.dart';
 import '../widgets/progress_metric_toggle.dart';
 import '../widgets/muscle_group_progress_chart.dart';
@@ -29,24 +31,11 @@ class _ProgressPageState extends State<ProgressPage> {
   final List<String> timePeriods = ['All Time', 'Last 6 Months', 'Last Month'];
   final List<String> equipmentOptions = [
     'All Equipment',
-    'Dumbbell',
-    'Barbell',
-    'Machine',
-    'Kettlebell',
+    ...EquipmentOptions.basic,
   ];
   final List<String> muscleGroupOptions = [
     'All Muscles',
-    'Chest',
-    'Back',
-    'Legs',
-    'Arms',
-    'Shoulders',
-    'Core',
-    'Quads',
-    'Hamstrings',
-    'Glutes',
-    'Biceps',
-    'Triceps',
+    ...MuscleGroupOptions.all,
   ];
 
   // Helper method to filter exercises by time period

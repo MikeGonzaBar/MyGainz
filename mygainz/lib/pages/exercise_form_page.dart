@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/exercise.dart';
+import '../utils/muscle_group_options.dart';
 
 class ExerciseFormPage extends StatefulWidget {
   final bool isEditing;
@@ -32,20 +33,7 @@ class _ExerciseFormPageState extends State<ExerciseFormPage> {
   String? _primaryMetric;
 
   // Available options
-  final List<String> _allMuscles = [
-    'Chest',
-    'Back',
-    'Biceps',
-    'Triceps',
-    'Shoulders',
-    'Quads',
-    'Hamstrings',
-    'Glutes',
-    'Calves',
-    'Abs',
-    'Lower Back',
-    'Obliques',
-  ];
+  final List<String> _allMuscles = MuscleGroupOptions.all;
   final List<String> _equipment = [
     'Barbell',
     'Dumbbell',

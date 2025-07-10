@@ -7,6 +7,7 @@ import '../services/workout_firestore_service.dart';
 import '../models/exercise.dart';
 import '../models/routine.dart';
 import '../models/workout_set.dart';
+import '../utils/equipment_options.dart';
 import '../widgets/workout_mode_toggle.dart';
 import '../widgets/routine_selection_card.dart';
 
@@ -44,12 +45,7 @@ class _LogPageState extends State<LogPage> {
   int focusedSetIndex = 0; // For single exercise mode
   Map<String, int> routineFocusedSetIndex = {}; // For routine mode
 
-  final List<String> equipmentOptions = [
-    'Barbell',
-    'Dumbbell',
-    'Kettlebell',
-    'Machine',
-  ];
+  final List<String> equipmentOptions = EquipmentOptions.basic;
 
   // Data loaded from Firestore
   List<Exercise> availableExercises = [];
@@ -569,16 +565,27 @@ class _LogPageState extends State<LogPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isExerciseMode) ...[
-                      _buildExerciseSection(),
-                    ] else ...[
-                      _buildRoutineSection(),
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  // Refresh both exercise/routine data and workout data
+                  await Future.wait([
+                    _loadUserData(),
+                    Provider.of<WorkoutProvider>(context, listen: false)
+                        .refreshWorkouts(),
+                  ]);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isExerciseMode) ...[
+                        _buildExerciseSection(),
+                      ] else ...[
+                        _buildRoutineSection(),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

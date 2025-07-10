@@ -29,6 +29,10 @@ class LoggedExercise {
   final double? speed; // km/h or mph
   final int? heartRate; // bpm
 
+  // NEW: Explicit linking fields
+  final String? parentRoutineId; // If this exercise came from a routine
+  final String? linkedExerciseId; // The linked exercise ID (bidirectional)
+
   LoggedExercise({
     required this.id,
     required this.exerciseId,
@@ -48,6 +52,9 @@ class LoggedExercise {
     this.calories,
     this.speed,
     this.heartRate,
+    // NEW: Linking fields
+    this.parentRoutineId,
+    this.linkedExerciseId,
   });
 
   // Computed properties for backward compatibility
@@ -106,6 +113,10 @@ class LoggedExercise {
       'calories': calories,
       'speed': speed,
       'heartRate': heartRate,
+
+      // NEW: Linking fields
+      'parentRoutineId': parentRoutineId,
+      'linkedExerciseId': linkedExerciseId,
     };
   }
 
@@ -144,6 +155,10 @@ class LoggedExercise {
       calories: json['calories'],
       speed: json['speed']?.toDouble(),
       heartRate: json['heartRate'],
+
+      // NEW: Linking fields
+      parentRoutineId: json['parentRoutineId'],
+      linkedExerciseId: json['linkedExerciseId'],
     );
   }
 
@@ -169,6 +184,9 @@ class LoggedRoutine {
   final List<LoggedExercise> exercises;
   final bool orderIsRequired;
 
+  // NEW: Map of routine exercise ID to individual exercise ID
+  final Map<String, String> linkedIndividualExerciseIds;
+
   LoggedRoutine({
     required this.id,
     required this.routineId,
@@ -177,6 +195,7 @@ class LoggedRoutine {
     required this.date,
     required this.exercises,
     this.orderIsRequired = false,
+    this.linkedIndividualExerciseIds = const {},
   });
 
   Map<String, dynamic> toJson() {
@@ -188,6 +207,7 @@ class LoggedRoutine {
       'date': date.toIso8601String(),
       'exercises': exercises.map((e) => e.toJson()).toList(),
       'orderIsRequired': orderIsRequired,
+      'linkedIndividualExerciseIds': linkedIndividualExerciseIds,
     };
   }
 
@@ -202,6 +222,9 @@ class LoggedRoutine {
           .map((e) => LoggedExercise.fromJson(e))
           .toList(),
       orderIsRequired: json['orderIsRequired'] ?? false,
+      linkedIndividualExerciseIds: json['linkedIndividualExerciseIds'] != null
+          ? Map<String, String>.from(json['linkedIndividualExerciseIds'])
+          : {},
     );
   }
 }
@@ -242,18 +265,38 @@ class WorkoutProvider with ChangeNotifier {
     _loadWorkouts();
   }
 
-  // Migration function to add existing routine exercises to individual exercises
+  // Migration function to create explicit links for existing routine exercises
   Future<void> migrateExistingRoutineExercises() async {
     try {
       bool hasNewMigrations = false;
 
-      for (final routine in _loggedRoutines) {
-        for (final exercise in routine.exercises) {
+      for (int routineIndex = 0;
+          routineIndex < _loggedRoutines.length;
+          routineIndex++) {
+        final routine = _loggedRoutines[routineIndex];
+        final Map<String, String> newLinkedExerciseIds =
+            Map<String, String>.from(routine.linkedIndividualExerciseIds);
+
+        for (int exerciseIndex = 0;
+            exerciseIndex < routine.exercises.length;
+            exerciseIndex++) {
+          final exercise = routine.exercises[exerciseIndex];
+
+          // Skip if this exercise already has explicit linking
+          if (exercise.linkedExerciseId != null ||
+              newLinkedExerciseIds.containsKey(exercise.id)) {
+            continue;
+          }
+
           // Check if this exercise from the routine already exists as an individual exercise
+          // Use day-level matching for migration purposes
           final existingIndividualExercise = _loggedExercises.firstWhere(
             (e) =>
                 e.exerciseId == exercise.exerciseId &&
-                e.date.isAtSameMomentAs(routine.date),
+                e.date.year == routine.date.year &&
+                e.date.month == routine.date.month &&
+                e.date.day == routine.date.day &&
+                e.parentRoutineId == null, // Only match standalone exercises
             orElse: () => LoggedExercise(
               id: '',
               exerciseId: '',
@@ -264,21 +307,53 @@ class WorkoutProvider with ChangeNotifier {
             ),
           );
 
-          // If no matching individual exercise exists, create one
-          if (existingIndividualExercise.id.isEmpty) {
-            try {
-              // Save each exercise as an individual session to Firestore
-              final exerciseFirestoreId =
-                  await _workoutFirestoreService.logExerciseSession(exercise);
+          String individualExerciseId;
 
-              // Create individual exercise with Firestore ID for local cache
+          if (existingIndividualExercise.id.isNotEmpty) {
+            // Link to existing individual exercise
+            individualExerciseId = existingIndividualExercise.id;
+
+            // Update the existing individual exercise to link back to routine
+            final updatedIndividualExercise = LoggedExercise(
+              id: existingIndividualExercise.id,
+              exerciseId: existingIndividualExercise.exerciseId,
+              exerciseName: existingIndividualExercise.exerciseName,
+              targetMuscles: existingIndividualExercise.targetMuscles,
+              equipment: existingIndividualExercise.equipment,
+              date: existingIndividualExercise.date,
+              individualSets: existingIndividualExercise.individualSets,
+              sets: existingIndividualExercise.sets,
+              weight: existingIndividualExercise.weight,
+              reps: existingIndividualExercise.reps,
+              distance: existingIndividualExercise.distance,
+              duration: existingIndividualExercise.duration,
+              pace: existingIndividualExercise.pace,
+              calories: existingIndividualExercise.calories,
+              speed: existingIndividualExercise.speed,
+              heartRate: existingIndividualExercise.heartRate,
+              parentRoutineId: routine.id,
+              linkedExerciseId: exercise.id,
+            );
+
+            final individualIndex = _loggedExercises
+                .indexWhere((e) => e.id == existingIndividualExercise.id);
+            if (individualIndex != -1) {
+              _loggedExercises[individualIndex] = updatedIndividualExercise;
+            }
+
+            print(
+                'Linked existing individual exercise: ${exercise.exerciseName}');
+          } else {
+            // Create new individual exercise with explicit linking
+            try {
+              // Create individual exercise
               final individualExercise = LoggedExercise(
-                id: exerciseFirestoreId,
+                id: DateTime.now().millisecondsSinceEpoch.toString() + '_ind',
                 exerciseId: exercise.exerciseId,
                 exerciseName: exercise.exerciseName,
                 targetMuscles: exercise.targetMuscles,
                 equipment: exercise.equipment,
-                date: exercise.date,
+                date: routine.date,
                 individualSets: exercise.individualSets,
                 sets: exercise.sets,
                 weight: exercise.weight,
@@ -289,29 +364,100 @@ class WorkoutProvider with ChangeNotifier {
                 calories: exercise.calories,
                 speed: exercise.speed,
                 heartRate: exercise.heartRate,
+                parentRoutineId: routine.id,
+                linkedExerciseId: exercise.id,
+              );
+
+              // Save to Firestore
+              final exerciseFirestoreId = await _workoutFirestoreService
+                  .logExerciseSession(individualExercise);
+
+              // Update with Firestore ID
+              final updatedIndividualExercise = LoggedExercise(
+                id: exerciseFirestoreId,
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                targetMuscles: exercise.targetMuscles,
+                equipment: exercise.equipment,
+                date: routine.date,
+                individualSets: exercise.individualSets,
+                sets: exercise.sets,
+                weight: exercise.weight,
+                reps: exercise.reps,
+                distance: exercise.distance,
+                duration: exercise.duration,
+                pace: exercise.pace,
+                calories: exercise.calories,
+                speed: exercise.speed,
+                heartRate: exercise.heartRate,
+                parentRoutineId: routine.id,
+                linkedExerciseId: exercise.id,
               );
 
               // Add to individual exercises list
-              _loggedExercises.add(individualExercise);
+              _loggedExercises.add(updatedIndividualExercise);
+              individualExerciseId = exerciseFirestoreId;
 
               // Check for new personal records for each exercise
-              await _checkAndCreatePersonalRecord(individualExercise);
+              await _checkAndCreatePersonalRecord(updatedIndividualExercise);
 
-              hasNewMigrations = true;
-              print('Migrated exercise from routine: ${exercise.exerciseName}');
+              print(
+                  'Created new individual exercise from routine: ${exercise.exerciseName}');
             } catch (e) {
               print(
-                  'Error migrating exercise from routine: ${exercise.exerciseName}, error: $e');
-              // Continue with other exercises even if one fails
+                  'Error creating individual exercise from routine: ${exercise.exerciseName}, error: $e');
+              continue;
             }
           }
+
+          // Update the routine exercise to link to individual exercise
+          final updatedRoutineExercise = LoggedExercise(
+            id: exercise.id,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            targetMuscles: exercise.targetMuscles,
+            equipment: exercise.equipment,
+            date: exercise.date,
+            individualSets: exercise.individualSets,
+            sets: exercise.sets,
+            weight: exercise.weight,
+            reps: exercise.reps,
+            distance: exercise.distance,
+            duration: exercise.duration,
+            pace: exercise.pace,
+            calories: exercise.calories,
+            speed: exercise.speed,
+            heartRate: exercise.heartRate,
+            linkedExerciseId: individualExerciseId,
+          );
+
+          // Update routine exercises list
+          final updatedExercises = List<LoggedExercise>.from(routine.exercises);
+          updatedExercises[exerciseIndex] = updatedRoutineExercise;
+
+          // Track the linking
+          newLinkedExerciseIds[exercise.id] = individualExerciseId;
+
+          // Update the routine with new exercise and linking data
+          _loggedRoutines[routineIndex] = LoggedRoutine(
+            id: routine.id,
+            routineId: routine.routineId,
+            name: routine.name,
+            targetMuscles: routine.targetMuscles,
+            date: routine.date,
+            exercises: updatedExercises,
+            orderIsRequired: routine.orderIsRequired,
+            linkedIndividualExerciseIds: newLinkedExerciseIds,
+          );
+
+          hasNewMigrations = true;
         }
       }
 
       if (hasNewMigrations) {
         notifyListeners();
         print(
-            'Successfully migrated existing routine exercises to individual exercises');
+            'Successfully migrated existing routine exercises with explicit linking');
       } else {
         print('No routine exercises needed migration');
       }
@@ -341,9 +487,6 @@ class WorkoutProvider with ChangeNotifier {
 
       _isLoading = false;
 
-      // Run one-time migration to fix weight units
-      await _migrateWeightUnits();
-
       // Run migration for existing routine exercises
       await migrateExistingRoutineExercises();
 
@@ -355,6 +498,11 @@ class WorkoutProvider with ChangeNotifier {
       notifyListeners();
       print('Error loading workouts from Firestore: $e');
     }
+  }
+
+  // Public method to refresh all workout data
+  Future<void> refreshWorkouts() async {
+    await _loadWorkouts();
   }
 
   // Clear all workout logs (for testing/reset)
@@ -459,80 +607,118 @@ class WorkoutProvider with ChangeNotifier {
     required List<LoggedExercise> exercises,
     bool orderIsRequired = false,
   }) async {
-    final loggedRoutine = LoggedRoutine(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      routineId: routineId,
-      name: routineName,
-      targetMuscles: targetMuscles,
-      date: DateTime.now(),
-      exercises: exercises,
-      orderIsRequired: orderIsRequired,
-    );
+    final routineFirestoreId = DateTime.now().millisecondsSinceEpoch.toString();
+    final routineDate = DateTime.now();
+
+    // Track linking between routine exercises and individual exercises
+    final Map<String, String> linkedIndividualExerciseIds = {};
+    final List<LoggedExercise> updatedIndividualExercises = [];
 
     try {
+      // FIRST: Create individual exercises with explicit links
+      for (int i = 0; i < exercises.length; i++) {
+        final exercise = exercises[i];
+
+        // Save each exercise as an individual session to Firestore
+        final exerciseFirestoreId =
+            await _workoutFirestoreService.logExerciseSession(exercise);
+
+        // Create individual exercise with explicit routine linking
+        final individualExercise = LoggedExercise(
+          id: exerciseFirestoreId,
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          targetMuscles: exercise.targetMuscles,
+          equipment: exercise.equipment,
+          date: routineDate, // Use same date as routine
+          individualSets: exercise.individualSets,
+          sets: exercise.sets,
+          weight: exercise.weight,
+          reps: exercise.reps,
+          distance: exercise.distance,
+          duration: exercise.duration,
+          pace: exercise.pace,
+          calories: exercise.calories,
+          speed: exercise.speed,
+          heartRate: exercise.heartRate,
+
+          // NEW: Explicit linking fields
+          parentRoutineId: routineFirestoreId,
+          linkedExerciseId: exercise.id, // Link back to routine exercise
+        );
+
+        // Update the routine exercise to link back to individual exercise
+        final updatedRoutineExercise = LoggedExercise(
+          id: exercise.id,
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          targetMuscles: exercise.targetMuscles,
+          equipment: exercise.equipment,
+          date: routineDate,
+          individualSets: exercise.individualSets,
+          sets: exercise.sets,
+          weight: exercise.weight,
+          reps: exercise.reps,
+          distance: exercise.distance,
+          duration: exercise.duration,
+          pace: exercise.pace,
+          calories: exercise.calories,
+          speed: exercise.speed,
+          heartRate: exercise.heartRate,
+
+          // NEW: Link to individual exercise
+          linkedExerciseId: exerciseFirestoreId,
+        );
+
+        updatedIndividualExercises.add(individualExercise);
+        exercises[i] = updatedRoutineExercise; // Update the routine exercise
+
+        // Track the linking
+        linkedIndividualExerciseIds[exercise.id] = exerciseFirestoreId;
+
+        // Add to individual exercises list
+        _loggedExercises.add(individualExercise);
+
+        // Check for new personal records for each exercise
+        await _checkAndCreatePersonalRecord(individualExercise);
+
+        print(
+            'Individual exercise logged from routine: ${exercise.exerciseName}');
+      }
+
+      // SECOND: Create the routine with explicit linking data
+      final loggedRoutine = LoggedRoutine(
+        id: routineFirestoreId,
+        routineId: routineId,
+        name: routineName,
+        targetMuscles: targetMuscles,
+        date: routineDate,
+        exercises: exercises, // Now contains updated exercises with links
+        orderIsRequired: orderIsRequired,
+        linkedIndividualExerciseIds: linkedIndividualExerciseIds,
+      );
+
       // Save routine to Firestore
       final firestoreId =
           await _workoutFirestoreService.logRoutineSession(loggedRoutine);
 
-      // Update local routine list with Firestore ID
+      // Update routine with Firestore ID
       final updatedRoutine = LoggedRoutine(
         id: firestoreId,
         routineId: routineId,
         name: routineName,
         targetMuscles: targetMuscles,
-        date: DateTime.now(),
+        date: routineDate,
         exercises: exercises,
         orderIsRequired: orderIsRequired,
+        linkedIndividualExerciseIds: linkedIndividualExerciseIds,
       );
 
       _loggedRoutines.add(updatedRoutine);
 
-      // ALSO LOG EACH EXERCISE INDIVIDUALLY
-      // This makes them appear in recent exercises and count for PRs/achievements
-      for (final exercise in exercises) {
-        try {
-          // Save each exercise as an individual session to Firestore
-          final exerciseFirestoreId =
-              await _workoutFirestoreService.logExerciseSession(exercise);
-
-          // Create individual exercise with Firestore ID for local cache
-          final individualExercise = LoggedExercise(
-            id: exerciseFirestoreId,
-            exerciseId: exercise.exerciseId,
-            exerciseName: exercise.exerciseName,
-            targetMuscles: exercise.targetMuscles,
-            equipment: exercise.equipment,
-            date: exercise.date,
-            individualSets: exercise.individualSets,
-            sets: exercise.sets,
-            weight: exercise.weight,
-            reps: exercise.reps,
-            distance: exercise.distance,
-            duration: exercise.duration,
-            pace: exercise.pace,
-            calories: exercise.calories,
-            speed: exercise.speed,
-            heartRate: exercise.heartRate,
-          );
-
-          // Add to individual exercises list
-          _loggedExercises.add(individualExercise);
-
-          // Check for new personal records for each exercise
-          await _checkAndCreatePersonalRecord(individualExercise);
-
-          print(
-              'Individual exercise logged from routine: ${exercise.exerciseName}');
-        } catch (e) {
-          print(
-              'Error logging individual exercise from routine: ${exercise.exerciseName}, error: $e');
-          // Continue with other exercises even if one fails
-        }
-      }
-
       notifyListeners();
       print(
-          'Routine logged to Firestore: $routineName (with ${exercises.length} individual exercises)');
+          'Routine logged with explicit linking: $routineName (${exercises.length} exercises linked)');
     } catch (e) {
       print('Error logging routine to Firestore: $e');
       throw Exception('Failed to log routine: $e');
@@ -594,6 +780,9 @@ class WorkoutProvider with ChangeNotifier {
         pace: exercise.pace,
         speed: exercise.speed,
         heartRate: exercise.heartRate,
+        // Preserve linking fields
+        parentRoutineId: exercise.parentRoutineId,
+        linkedExerciseId: exercise.linkedExerciseId,
       );
 
       try {
@@ -603,7 +792,22 @@ class WorkoutProvider with ChangeNotifier {
 
         // Update local list
         _loggedExercises[index] = updatedExercise;
-        notifyListeners();
+
+        // NEW: Also update the linked exercise if it exists
+        if (exercise.linkedExerciseId != null) {
+          await _updateLinkedExercise(exercise.linkedExerciseId!, {
+            'weight': updatedWeight,
+            'reps': updatedReps,
+            'equipment': equipment ?? exercise.equipment,
+            'sets': updatedSets,
+            'distance': distance ?? exercise.distance,
+            'duration': duration ?? exercise.duration,
+            'calories': calories ?? exercise.calories,
+          });
+        }
+
+        // Refresh data to ensure UI is up-to-date
+        await refreshWorkouts();
         print('Exercise updated in Firestore: ${updatedExercise.exerciseName}');
       } catch (e) {
         print('Error updating exercise in Firestore: $e');
@@ -612,7 +816,103 @@ class WorkoutProvider with ChangeNotifier {
     }
   }
 
-  // Update a logged routine exercise
+  // Helper method to update linked exercises
+  Future<void> _updateLinkedExercise(
+      String linkedExerciseId, Map<String, dynamic> updates) async {
+    // Check if it's an individual exercise linked to a routine exercise
+    final individualIndex =
+        _loggedExercises.indexWhere((ex) => ex.id == linkedExerciseId);
+    if (individualIndex != -1) {
+      final linkedExercise = _loggedExercises[individualIndex];
+
+      final updatedLinkedExercise = LoggedExercise(
+        id: linkedExercise.id,
+        exerciseId: linkedExercise.exerciseId,
+        exerciseName: linkedExercise.exerciseName,
+        targetMuscles: linkedExercise.targetMuscles,
+        date: linkedExercise.date,
+        individualSets: null, // Clear individual sets when editing
+        equipment: updates['equipment'] ?? linkedExercise.equipment,
+        sets: updates['sets'] ?? linkedExercise.sets,
+        weight: updates['weight'] ?? linkedExercise.weight,
+        reps: updates['reps'] ?? linkedExercise.reps,
+        distance: updates['distance'] ?? linkedExercise.distance,
+        duration: updates['duration'] ?? linkedExercise.duration,
+        calories: updates['calories'] ?? linkedExercise.calories,
+        pace: linkedExercise.pace,
+        speed: linkedExercise.speed,
+        heartRate: linkedExercise.heartRate,
+        parentRoutineId: linkedExercise.parentRoutineId,
+        linkedExerciseId: linkedExercise.linkedExerciseId,
+      );
+
+      try {
+        await _workoutFirestoreService.updateExerciseSession(
+            linkedExerciseId, updatedLinkedExercise);
+        _loggedExercises[individualIndex] = updatedLinkedExercise;
+        print('Linked exercise updated: ${updatedLinkedExercise.exerciseName}');
+      } catch (e) {
+        print('Error updating linked exercise: $e');
+      }
+      return;
+    }
+
+    // Check if it's a routine exercise linked to an individual exercise
+    for (int routineIndex = 0;
+        routineIndex < _loggedRoutines.length;
+        routineIndex++) {
+      final routine = _loggedRoutines[routineIndex];
+      final exerciseIndex =
+          routine.exercises.indexWhere((ex) => ex.id == linkedExerciseId);
+
+      if (exerciseIndex != -1) {
+        final linkedExercise = routine.exercises[exerciseIndex];
+
+        final updatedLinkedExercise = LoggedExercise(
+          id: linkedExercise.id,
+          exerciseId: linkedExercise.exerciseId,
+          exerciseName: linkedExercise.exerciseName,
+          targetMuscles: linkedExercise.targetMuscles,
+          date: linkedExercise.date,
+          individualSets: null, // Clear individual sets when editing
+          equipment: updates['equipment'] ?? linkedExercise.equipment,
+          sets: updates['sets'] ?? linkedExercise.sets,
+          weight: updates['weight'] ?? linkedExercise.weight,
+          reps: updates['reps'] ?? linkedExercise.reps,
+          distance: updates['distance'] ?? linkedExercise.distance,
+          duration: updates['duration'] ?? linkedExercise.duration,
+          calories: updates['calories'] ?? linkedExercise.calories,
+          pace: linkedExercise.pace,
+          speed: linkedExercise.speed,
+          heartRate: linkedExercise.heartRate,
+          parentRoutineId: linkedExercise.parentRoutineId,
+          linkedExerciseId: linkedExercise.linkedExerciseId,
+        );
+
+        final updatedExercises = List<LoggedExercise>.from(routine.exercises);
+        updatedExercises[exerciseIndex] = updatedLinkedExercise;
+
+        final updatedRoutine = LoggedRoutine(
+          id: routine.id,
+          routineId: routine.routineId,
+          name: routine.name,
+          targetMuscles: routine.targetMuscles,
+          date: routine.date,
+          exercises: updatedExercises,
+          orderIsRequired: routine.orderIsRequired,
+          linkedIndividualExerciseIds: routine.linkedIndividualExerciseIds,
+        );
+
+        // Update routine locally (Firestore routine is updated separately)
+        _loggedRoutines[routineIndex] = updatedRoutine;
+        print(
+            'Linked routine exercise updated: ${updatedLinkedExercise.exerciseName}');
+        return;
+      }
+    }
+  }
+
+  // Update a logged routine exercise using explicit linking
   Future<void> updateLoggedRoutineExercise(
     String routineId,
     String exerciseId, {
@@ -638,6 +938,15 @@ class WorkoutProvider with ChangeNotifier {
           equipment: equipment ?? exercise.equipment,
           sets: sets ?? exercise.sets,
           date: exercise.date,
+          individualSets: null, // Clear individual sets when editing
+          distance: exercise.distance,
+          duration: exercise.duration,
+          pace: exercise.pace,
+          calories: exercise.calories,
+          speed: exercise.speed,
+          heartRate: exercise.heartRate,
+          linkedExerciseId: exercise.linkedExerciseId,
+          parentRoutineId: exercise.parentRoutineId,
         );
 
         final updatedExercises = List<LoggedExercise>.from(routine.exercises);
@@ -651,9 +960,21 @@ class WorkoutProvider with ChangeNotifier {
           date: routine.date,
           exercises: updatedExercises,
           orderIsRequired: routine.orderIsRequired,
+          linkedIndividualExerciseIds: routine.linkedIndividualExerciseIds,
         );
 
-        notifyListeners();
+        // NEW: Also update the linked individual exercise if it exists
+        if (exercise.linkedExerciseId != null) {
+          await _updateLinkedExercise(exercise.linkedExerciseId!, {
+            'weight': weight ?? exercise.weight,
+            'reps': reps ?? exercise.reps,
+            'equipment': equipment ?? exercise.equipment,
+            'sets': sets ?? exercise.sets,
+          });
+        }
+
+        // Refresh data to ensure UI is up-to-date
+        await refreshWorkouts();
       }
     }
   }
@@ -661,16 +982,83 @@ class WorkoutProvider with ChangeNotifier {
   // Delete a logged exercise
   Future<void> deleteLoggedExercise(String exerciseId) async {
     try {
+      final exercise = _loggedExercises.firstWhere((ex) => ex.id == exerciseId,
+          orElse: () => LoggedExercise(
+              id: '',
+              exerciseId: '',
+              exerciseName: '',
+              targetMuscles: [],
+              equipment: '',
+              date: DateTime.now()));
+
       // Delete from Firestore
       await _workoutFirestoreService.deleteExerciseSession(exerciseId);
 
-      // Delete from local list
+      // If this exercise has a linked exercise, also delete it
+      if (exercise.linkedExerciseId != null) {
+        await _deleteLinkedExercise(exercise.linkedExerciseId!);
+      }
+
+      // Delete from local list and refresh data
       _loggedExercises.removeWhere((ex) => ex.id == exerciseId);
-      notifyListeners();
+      await refreshWorkouts();
       print('Exercise deleted from Firestore: $exerciseId');
     } catch (e) {
       print('Error deleting exercise from Firestore: $e');
       throw Exception('Failed to delete exercise: $e');
+    }
+  }
+
+  // Helper method to delete linked exercises
+  Future<void> _deleteLinkedExercise(String linkedExerciseId) async {
+    try {
+      // Check if it's an individual exercise
+      final individualIndex =
+          _loggedExercises.indexWhere((ex) => ex.id == linkedExerciseId);
+      if (individualIndex != -1) {
+        await _workoutFirestoreService.deleteExerciseSession(linkedExerciseId);
+        _loggedExercises.removeAt(individualIndex);
+        print('Linked individual exercise deleted: $linkedExerciseId');
+        return;
+      }
+
+      // Check if it's a routine exercise
+      for (int routineIndex = 0;
+          routineIndex < _loggedRoutines.length;
+          routineIndex++) {
+        final routine = _loggedRoutines[routineIndex];
+        final exerciseIndex =
+            routine.exercises.indexWhere((ex) => ex.id == linkedExerciseId);
+
+        if (exerciseIndex != -1) {
+          final updatedExercises = List<LoggedExercise>.from(routine.exercises);
+          updatedExercises.removeAt(exerciseIndex);
+
+          if (updatedExercises.isEmpty) {
+            // Delete entire routine if no exercises left
+            await _workoutFirestoreService.deleteRoutineSession(routine.id);
+            _loggedRoutines.removeAt(routineIndex);
+            print('Routine deleted because no exercises left: ${routine.id}');
+          } else {
+            // Update routine with remaining exercises
+            final updatedRoutine = LoggedRoutine(
+              id: routine.id,
+              routineId: routine.routineId,
+              name: routine.name,
+              targetMuscles: routine.targetMuscles,
+              date: routine.date,
+              exercises: updatedExercises,
+              orderIsRequired: routine.orderIsRequired,
+              linkedIndividualExerciseIds: routine.linkedIndividualExerciseIds,
+            );
+            _loggedRoutines[routineIndex] = updatedRoutine;
+            print('Linked routine exercise deleted: $linkedExerciseId');
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error deleting linked exercise: $e');
     }
   }
 
@@ -683,36 +1071,40 @@ class WorkoutProvider with ChangeNotifier {
       // Delete routine from Firestore
       await _workoutFirestoreService.deleteRoutineSession(routineId);
 
-      // Also delete individual exercises that were logged from this routine
-      // These have exercise IDs that contain the routine ID
-      for (final exercise in routine.exercises) {
+      // Delete all linked individual exercises using explicit linking
+      for (final exerciseId in routine.linkedIndividualExerciseIds.values) {
         try {
-          // Find and delete corresponding individual exercise sessions
-          final exercisesToDelete = _loggedExercises
-              .where((e) =>
-                  e.exerciseId == exercise.exerciseId &&
-                  e.date.isAtSameMomentAs(routine.date))
-              .toList();
-
-          for (final exerciseToDelete in exercisesToDelete) {
-            await _workoutFirestoreService
-                .deleteExerciseSession(exerciseToDelete.id);
-            _loggedExercises.removeWhere((e) => e.id == exerciseToDelete.id);
-            print(
-                'Deleted individual exercise from routine: ${exerciseToDelete.exerciseName}');
-          }
+          await _workoutFirestoreService.deleteExerciseSession(exerciseId);
+          _loggedExercises.removeWhere((e) => e.id == exerciseId);
+          print('Deleted linked individual exercise: $exerciseId');
         } catch (e) {
-          print(
-              'Error deleting individual exercise from routine: ${exercise.exerciseName}, error: $e');
+          print('Error deleting linked individual exercise $exerciseId: $e');
           // Continue with other exercises even if one fails
         }
       }
 
-      // Delete routine from local list
+      // Also delete individual exercises that reference this routine as parent
+      final parentLinkedExercises = _loggedExercises
+          .where((e) => e.parentRoutineId == routineId)
+          .toList();
+
+      for (final exercise in parentLinkedExercises) {
+        try {
+          await _workoutFirestoreService.deleteExerciseSession(exercise.id);
+          _loggedExercises.removeWhere((e) => e.id == exercise.id);
+          print(
+              'Deleted parent-linked individual exercise: ${exercise.exerciseName}');
+        } catch (e) {
+          print(
+              'Error deleting parent-linked exercise ${exercise.exerciseName}: $e');
+        }
+      }
+
+      // Delete routine from local list and refresh data
       _loggedRoutines.removeWhere((r) => r.id == routineId);
-      notifyListeners();
+      await refreshWorkouts();
       print(
-          'Routine and its individual exercises deleted from Firestore: $routineId');
+          'Routine and its linked exercises deleted from Firestore: $routineId');
     } catch (e) {
       print('Error deleting routine from Firestore: $e');
       throw Exception('Failed to delete routine: $e');
@@ -1167,9 +1559,12 @@ class WorkoutProvider with ChangeNotifier {
 
       // ALSO UPDATE THE CORRESPONDING INDIVIDUAL EXERCISE
       // Find the individual exercise that corresponds to this routine exercise
+      // Use day-level matching instead of exact moment to account for slight time differences
       final individualExerciseIndex = _loggedExercises.indexWhere((e) =>
           e.exerciseId == exercise.exerciseId &&
-          e.date.isAtSameMomentAs(routine.date));
+          e.date.year == routine.date.year &&
+          e.date.month == routine.date.month &&
+          e.date.day == routine.date.day);
 
       if (individualExerciseIndex != -1) {
         try {
@@ -1213,257 +1608,6 @@ class WorkoutProvider with ChangeNotifier {
     } catch (e) {
       print('Error updating routine exercise individual sets: $e');
       throw Exception('Failed to update routine exercise individual sets: $e');
-    }
-  }
-
-  // One-time migration to fix weights stored in lbs before unit conversion fix
-  Future<void> _migrateWeightUnits() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final migrationKey = 'weight_units_migrated';
-
-      // Check if migration has already been run
-      if (prefs.getBool(migrationKey) == true) {
-        return; // Migration already completed
-      }
-
-      print('Starting one-time weight units migration...');
-      bool hasChanges = false;
-
-      // Migrate logged exercises
-      for (int i = 0; i < _loggedExercises.length; i++) {
-        final exercise = _loggedExercises[i];
-        bool exerciseChanged = false;
-
-        // Migrate individual sets if they exist
-        List<WorkoutSetData>? migratedSets;
-        if (exercise.individualSets != null &&
-            exercise.individualSets!.isNotEmpty) {
-          migratedSets = [];
-          for (final set in exercise.individualSets!) {
-            // If weight seems to be in lbs (> 10 kg is suspicious for most exercises in kg)
-            // This heuristic helps identify weights that were likely stored in lbs
-            if (set.weight > 10.0) {
-              migratedSets.add(WorkoutSetData(
-                weight: set.weight * 0.453592, // Convert lbs to kg
-                reps: set.reps,
-                setNumber: set.setNumber,
-              ));
-              exerciseChanged = true;
-            } else {
-              migratedSets.add(set); // Keep as-is
-            }
-          }
-        }
-
-        // Migrate average weight if it exists and seems to be in lbs
-        double? migratedWeight = exercise.weight;
-        if (exercise.weight != null && exercise.weight! > 10.0) {
-          migratedWeight = exercise.weight! * 0.453592; // Convert lbs to kg
-          exerciseChanged = true;
-        }
-
-        double? migratedAverageWeight = exercise.averageWeight;
-        if (exercise.averageWeight != null && exercise.averageWeight! > 10.0) {
-          migratedAverageWeight =
-              exercise.averageWeight! * 0.453592; // Convert lbs to kg
-          exerciseChanged = true;
-        }
-
-        if (exerciseChanged) {
-          final migratedExercise = LoggedExercise(
-            id: exercise.id,
-            exerciseId: exercise.exerciseId,
-            exerciseName: exercise.exerciseName,
-            targetMuscles: exercise.targetMuscles,
-            date: exercise.date,
-            individualSets: migratedSets,
-            sets: exercise.sets,
-            weight: migratedWeight,
-            reps: exercise.reps,
-            equipment: exercise.equipment,
-            distance: exercise.distance,
-            duration: exercise.duration,
-            calories: exercise.calories,
-            pace: exercise.pace,
-            speed: exercise.speed,
-            heartRate: exercise.heartRate,
-          );
-
-          _loggedExercises[i] = migratedExercise;
-          hasChanges = true;
-
-          // Update in Firestore
-          try {
-            await _workoutFirestoreService.updateExerciseSession(
-                exercise.id, migratedExercise);
-            print('Migrated exercise: ${exercise.exerciseName}');
-          } catch (e) {
-            print('Error updating migrated exercise in Firestore: $e');
-          }
-        }
-      }
-
-      // Migrate logged routines
-      for (int i = 0; i < _loggedRoutines.length; i++) {
-        final routine = _loggedRoutines[i];
-        bool routineChanged = false;
-        List<LoggedExercise> migratedExercises = [];
-
-        for (final exercise in routine.exercises) {
-          bool exerciseChanged = false;
-
-          // Migrate individual sets if they exist
-          List<WorkoutSetData>? migratedSets;
-          if (exercise.individualSets != null &&
-              exercise.individualSets!.isNotEmpty) {
-            migratedSets = [];
-            for (final set in exercise.individualSets!) {
-              if (set.weight > 10.0) {
-                migratedSets.add(WorkoutSetData(
-                  weight: set.weight * 0.453592, // Convert lbs to kg
-                  reps: set.reps,
-                  setNumber: set.setNumber,
-                ));
-                exerciseChanged = true;
-              } else {
-                migratedSets.add(set); // Keep as-is
-              }
-            }
-          }
-
-          // Migrate average weight if it exists and seems to be in lbs
-          double? migratedWeight = exercise.weight;
-          if (exercise.weight != null && exercise.weight! > 10.0) {
-            migratedWeight = exercise.weight! * 0.453592; // Convert lbs to kg
-            exerciseChanged = true;
-          }
-
-          double? migratedAverageWeight = exercise.averageWeight;
-          if (exercise.averageWeight != null &&
-              exercise.averageWeight! > 10.0) {
-            migratedAverageWeight =
-                exercise.averageWeight! * 0.453592; // Convert lbs to kg
-            exerciseChanged = true;
-          }
-
-          if (exerciseChanged) {
-            final migratedExercise = LoggedExercise(
-              id: exercise.id,
-              exerciseId: exercise.exerciseId,
-              exerciseName: exercise.exerciseName,
-              targetMuscles: exercise.targetMuscles,
-              date: exercise.date,
-              individualSets: migratedSets,
-              sets: exercise.sets,
-              weight: migratedWeight,
-              reps: exercise.reps,
-              equipment: exercise.equipment,
-              distance: exercise.distance,
-              duration: exercise.duration,
-              calories: exercise.calories,
-              pace: exercise.pace,
-              speed: exercise.speed,
-              heartRate: exercise.heartRate,
-            );
-
-            migratedExercises.add(migratedExercise);
-            routineChanged = true;
-
-            // Update routine exercise in Firestore
-            try {
-              if (exercise.individualSets != null && migratedSets != null) {
-                await _workoutFirestoreService.updateRoutineSessionExercise(
-                  routine.id,
-                  exercise.exerciseId,
-                  migratedSets,
-                  exercise.equipment,
-                );
-              }
-              print('Migrated routine exercise: ${exercise.exerciseName}');
-            } catch (e) {
-              print(
-                  'Error updating migrated routine exercise in Firestore: $e');
-            }
-          } else {
-            migratedExercises.add(exercise); // Keep as-is
-          }
-        }
-
-        if (routineChanged) {
-          _loggedRoutines[i] = LoggedRoutine(
-            id: routine.id,
-            routineId: routine.routineId,
-            name: routine.name,
-            targetMuscles: routine.targetMuscles,
-            date: routine.date,
-            exercises: migratedExercises,
-            orderIsRequired: routine.orderIsRequired,
-          );
-          hasChanges = true;
-        }
-      }
-
-      // Migrate personal records
-      for (int i = 0; i < _personalRecords.length; i++) {
-        final pr = _personalRecords[i];
-        bool prChanged = false;
-
-        double? migratedWeight = pr.weight;
-        double? migratedOneRepMax = pr.oneRepMax;
-
-        if (pr.weight != null && pr.weight! > 10.0) {
-          migratedWeight = pr.weight! * 0.453592; // Convert lbs to kg
-          prChanged = true;
-        }
-
-        if (pr.oneRepMax != null && pr.oneRepMax! > 10.0) {
-          migratedOneRepMax = pr.oneRepMax! * 0.453592; // Convert lbs to kg
-          prChanged = true;
-        }
-
-        if (prChanged) {
-          final migratedPR = PersonalRecord(
-            id: pr.id,
-            exerciseId: pr.exerciseId,
-            exerciseName: pr.exerciseName,
-            date: pr.date,
-            equipment: pr.equipment,
-            type: pr.type,
-            weight: migratedWeight,
-            reps: pr.reps,
-            sets: pr.sets,
-            oneRepMax: migratedOneRepMax,
-            distance: pr.distance,
-            duration: pr.duration,
-            pace: pr.pace,
-          );
-
-          _personalRecords[i] = migratedPR;
-          hasChanges = true;
-
-          // Update in Firestore
-          try {
-            await _workoutFirestoreService.updatePersonalRecord(
-                pr.id, migratedPR);
-            print('Migrated personal record: ${pr.exerciseName}');
-          } catch (e) {
-            print('Error updating migrated personal record in Firestore: $e');
-          }
-        }
-      }
-
-      // Mark migration as completed
-      await prefs.setBool(migrationKey, true);
-
-      if (hasChanges) {
-        notifyListeners();
-        print('Weight units migration completed successfully');
-      } else {
-        print('No weight units migration needed');
-      }
-    } catch (e) {
-      print('Error during weight units migration: $e');
     }
   }
 }

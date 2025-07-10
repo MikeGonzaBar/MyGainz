@@ -49,15 +49,18 @@
 
 ### 🏋️‍♂️ Comprehensive Workout System
 - **Exercise Database:** Extensive library of exercises with target muscles and equipment
-- **Smart Exercise Search:** Real-time autocomplete with muscle group filtering
+- **Smart Exercise Search:** Real-time autocomplete with advanced multi-select muscle group filtering
+- **Enhanced Filtering:** Select multiple muscle groups simultaneously with visual indicators and smart layout
 - **Custom Exercise Creation:** Add personalized exercises on-the-fly
 - **Individual Set Tracking:** Log each set separately with weight, reps, and equipment
-- **Real-time Data Sync:** Workout data synchronized across devices
+- **Real-time Data Sync:** Workout data synchronized across devices with automatic refresh
 
 ### 🎯 Routine Management
 - **Custom Routine Creator:** Build personalized workout routines
+- **Enhanced Exercise Tiles:** Larger tiles with muscle group icons and improved typography
 - **Order Enforcement:** Optional exercise sequencing with visual progress indicators
 - **Smart Muscle Targeting:** Auto-calculated target muscles based on included exercises
+- **Visual Muscle Icons:** Automatic muscle group icon display based on exercise targets
 - **Flexible Execution:** Support for both ordered and random exercise selection
 - **Cloud Synchronization:** Routines saved and synced across devices
 
@@ -101,6 +104,8 @@
 The dashboard provides:
 - **Recent Activity:** Last 5 logged exercises and routines
 - **Quick Stats:** Current weight and height with unit display
+- **Pull-to-Refresh:** Instant data refresh with downward swipe gesture
+- **Manual Refresh:** App bar refresh button with loading indicators
 - **Real-time Sync:** Live updates from cloud data
 - **Empty States:** Encouraging messages for new users
 - **Cross-device Consistency:** Same data across all devices
@@ -388,6 +393,43 @@ service cloud.firestore {
 ---
 
 ## Recent Updates
+
+### 🔧 Version 2.0.2 - Enhanced UI & User Experience
+
+**Performance Improvements:**
+- **Migration Script Removal:** Eliminated problematic weight migration script that was causing ANR crashes and app freezing
+- **Optimized Startup:** Faster app initialization without heavy background operations on the main thread
+
+**Enhanced Filtering & Search:**
+- **Multi-Select Muscle Groups:** Exercise filtering now supports multiple muscle group selection with visual indicators
+- **Comprehensive Muscle Groups:** Added complete muscle group options including Chest, Back, Biceps, Triceps, Shoulders, Quads, Hamstrings, Glutes, Calves, Abs, Lower Back, and Obliques
+- **Smart Filter Layout:** Selected filters appear first in the list for better accessibility
+- **Clear Filters Button:** One-tap clear option showing current selection count
+- **Horizontal Scroll Design:** Improved filter navigation with smooth scrolling
+
+**Improved Exercise Tiles & Visual Design:**
+- **Enhanced Routine Exercise Tiles:** Larger tiles (85x110px) with better text layout and readability
+- **Muscle Group Icons:** Added visual muscle group icons to exercise tiles using app assets
+- **Smart Icon Mapping:** Automatic icon selection based on exercise target muscles
+- **Modern Typography:** Improved font weights, sizing, and line height for better readability
+- **Visual Polish:** Added shadows, better spacing, and enhanced remove buttons
+
+**Data Refresh & Synchronization:**
+- **Automatic Refresh:** Data automatically refreshes after editing or deleting exercises and routines
+- **Pull-to-Refresh:** Added refresh functionality to Home, Exercise History, Routine History, and Log pages
+- **Manual Refresh Button:** App bar refresh button with loading indicators for immediate data sync
+- **Real-time Updates:** Improved data consistency across all app screens
+
+**UI & UX Improvements:**
+- **Equipment Dropdown Fix:** Resolved dropdown assertion errors with centralized equipment options
+- **Icon Alignment Fix:** Fixed muscle group icons to be properly centered instead of top-left aligned
+- **Reduced Profile Spacing:** Smaller gap between "Overview" text and weight/height metrics (16px → 8px)
+- **Consistent Equipment Options:** Standardized equipment choices across all forms and filters
+
+**Technical Architecture:**
+- **Centralized Utilities:** Created `equipment_options.dart` and `muscle_group_options.dart` for consistency
+- **Enhanced Error Handling:** Better validation and error management for dropdown components
+- **Improved State Management:** More reliable data refresh and synchronization patterns
 
 ### 🔧 Version 2.0.1 - Unit Conversion Bug Fixes & Data Migration
 

@@ -4,6 +4,7 @@ import '../providers/units_provider.dart';
 import '../providers/workout_provider.dart';
 import '../models/workout_set.dart';
 import '../utils/date_helpers.dart';
+import '../utils/equipment_options.dart';
 
 class ExerciseCard extends StatelessWidget {
   final LoggedExercise exercise;
@@ -246,13 +247,7 @@ class ExerciseCard extends StatelessWidget {
       repsControllers.add(TextEditingController(text: set.reps.toString()));
     }
 
-    final equipmentOptions = [
-      'Barbell',
-      'Dumbbell',
-      'Kettlebell',
-      'Machine',
-      'Bodyweight',
-    ];
+    final equipmentOptions = EquipmentOptions.basic;
 
     // Function to safely dispose all controllers
     void disposeAllControllers() {
@@ -294,7 +289,9 @@ class ExerciseCard extends StatelessWidget {
                       children: [
                         // Equipment selector
                         DropdownButtonFormField<String>(
-                          value: selectedEquipment,
+                          value: equipmentOptions.contains(selectedEquipment)
+                              ? selectedEquipment
+                              : equipmentOptions.first,
                           decoration: const InputDecoration(
                             labelText: 'Equipment',
                             border: OutlineInputBorder(),
@@ -569,13 +566,7 @@ class ExerciseCard extends StatelessWidget {
         TextEditingController(text: exercise.totalSets.toString());
     String selectedEquipment = exercise.equipment;
 
-    final equipmentOptions = [
-      'Barbell',
-      'Dumbbell',
-      'Kettlebell',
-      'Machine',
-      'Bodyweight',
-    ];
+    final equipmentOptions = EquipmentOptions.basic;
 
     showDialog(
       context: context,
@@ -625,7 +616,9 @@ class ExerciseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: selectedEquipment,
+                      value: equipmentOptions.contains(selectedEquipment)
+                          ? selectedEquipment
+                          : equipmentOptions.first,
                       decoration: const InputDecoration(
                         labelText: 'Equipment',
                         border: OutlineInputBorder(),
@@ -715,22 +708,7 @@ class ExerciseCard extends StatelessWidget {
     final caloriesController =
         TextEditingController(text: exercise.calories?.toString() ?? '');
     String selectedEquipment = exercise.equipment;
-    final equipmentOptions = [
-      'Treadmill',
-      'Outdoor',
-      'Track',
-      'Pool',
-      'Open Water',
-      'Stationary Bike',
-      'Road Bike',
-      'Mountain Bike',
-      'Spin Bike',
-      'Stair Master',
-      'Stepper',
-      'Rowing Machine',
-      'Water',
-      'Elliptical'
-    ];
+    final equipmentOptions = EquipmentOptions.cardio;
 
     showDialog(
       context: context,

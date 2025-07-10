@@ -79,6 +79,37 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
     });
   }
 
+  // Get the appropriate muscle group icon path based on target muscles
+  String _getMuscleIconPath(List<String> targetMuscles) {
+    if (targetMuscles.isEmpty) return 'assets/icons/muscles/Chest.png';
+
+    // Priority mapping - use the first muscle that matches
+    final muscleIconMap = {
+      'Chest': 'assets/icons/muscles/Chest.png',
+      'Back': 'assets/icons/muscles/Back.png',
+      'Biceps': 'assets/icons/muscles/Biceps.png',
+      'Triceps': 'assets/icons/muscles/Triceps.png',
+      'Shoulders': 'assets/icons/muscles/Shoulder.png',
+      'Quads': 'assets/icons/muscles/Thigh.png',
+      'Hamstrings': 'assets/icons/muscles/Hamstrings.png',
+      'Glutes': 'assets/icons/muscles/butt.png',
+      'Calves': 'assets/icons/muscles/Calves.png',
+      'Abs': 'assets/icons/muscles/Abs.png',
+      'Lower Back': 'assets/icons/muscles/Back.png',
+      'Obliques': 'assets/icons/muscles/Abs.png',
+    };
+
+    // Return the first matching muscle group icon
+    for (final muscle in targetMuscles) {
+      if (muscleIconMap.containsKey(muscle)) {
+        return muscleIconMap[muscle]!;
+      }
+    }
+
+    // Default fallback
+    return 'assets/icons/muscles/Chest.png';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -307,67 +338,93 @@ class _RoutineFormPageState extends State<RoutineFormPage> {
 
   Widget _buildSelectedExerciseTile(Exercise exercise) {
     return Container(
-      width: 70,
-      height: 100,
+      width: 85,
+      height: 110,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Stack(
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(_getIconForExercise(exercise.exerciseName), size: 30),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  exercise.exerciseName,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 10),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Muscle group icon
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    _getMuscleIconPath(exercise.targetMuscles),
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.fitness_center,
+                        size: 28,
+                        color: Colors.grey.shade600,
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                // Exercise name with better formatting
+                Expanded(
+                  child: Text(
+                    exercise.exerciseName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
+          // Remove button
           Positioned(
-            top: 0,
-            right: 0,
+            top: 2,
+            right: 2,
             child: GestureDetector(
               onTap: () => _toggleExercise(exercise),
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.red,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade500,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
-                padding: const EdgeInsets.all(2),
-                child: const Icon(Icons.close, size: 14, color: Colors.white),
+                padding: const EdgeInsets.all(3),
+                child: const Icon(
+                  Icons.close,
+                  size: 12,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
         ],
       ),
     );
-  }
-
-  IconData _getIconForExercise(String exerciseName) {
-    switch (exerciseName.toLowerCase()) {
-      case 'bench press':
-        return Icons.fitness_center;
-      case 'pull-ups':
-        return Icons.accessibility_new;
-      case 'rows':
-        return Icons.rowing;
-      case 'katana':
-        return Icons.sports_martial_arts;
-      case 'skull crusher':
-        return Icons.sports_gymnastics;
-      case 'shoulder press':
-        return Icons.fitness_center;
-      default:
-        return Icons.fitness_center;
-    }
   }
 }

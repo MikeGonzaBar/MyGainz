@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2024-12-29
+
+### Fixed
+- **Migration Script Removal** - Eliminated problematic weight migration script that was causing ANR crashes and app freezing on startup
+- **Equipment Dropdown Error** - Resolved DropdownButton assertion error with "Cable" equipment value not found in dropdown items
+- **Icon Alignment** - Fixed muscle group icons being top-left aligned instead of properly centered in exercise tiles
+- **Data Synchronization** - Fixed issues where edited exercises and routines wouldn't immediately reflect changes across the app
+
+### Added
+- **Multi-Select Muscle Group Filtering** - Exercise filtering now supports selecting multiple muscle groups simultaneously
+- **Comprehensive Muscle Group Options** - Added complete muscle group list: Chest, Back, Biceps, Triceps, Shoulders, Quads, Hamstrings, Glutes, Calves, Abs, Lower Back, Obliques
+- **Pull-to-Refresh Functionality** - Added refresh capability to Home, Exercise History, Routine History, and Log pages
+- **Manual Refresh Button** - App bar refresh button with loading indicators for immediate data synchronization
+- **Muscle Group Icons on Exercise Tiles** - Visual muscle group icons automatically displayed on routine exercise tiles
+- **Clear Filters Button** - One-tap clear option for muscle group filters showing current selection count
+- **Automatic Data Refresh** - Data automatically refreshes after editing or deleting exercises and routines
+
+### Enhanced
+- **Exercise Tile Design** - Enlarged routine exercise tiles from 70x100 to 85x110 pixels with improved typography
+- **Filter Layout** - Selected muscle group filters appear first in the list for better accessibility
+- **Equipment Options Consistency** - Centralized equipment options across all forms and filters to prevent dropdown errors
+- **Typography Improvements** - Better font weights (FontWeight.w500), sizing (11px), and line height for exercise tiles
+- **Visual Polish** - Added shadows, better spacing, and enhanced remove buttons on exercise tiles
+- **Profile Spacing** - Reduced gap between "Overview" text and weight/height metrics from 16px to 8px
+
+### Technical Improvements
+- **Centralized Utilities** - Created `equipment_options.dart` and `muscle_group_options.dart` for consistency across the app
+- **Smart Icon Mapping** - Automatic muscle group icon selection based on exercise target muscles using existing app assets
+- **Enhanced Error Handling** - Better validation and error management for dropdown components
+- **Improved State Management** - More reliable data refresh and synchronization patterns
+- **Performance Optimization** - Faster app initialization without heavy background operations on the main thread
+
 ## [2.0.1] - 2024-12-23
 
 ### Fixed

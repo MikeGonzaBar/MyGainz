@@ -28,50 +28,77 @@ class RoutineHistoryPage extends StatelessWidget {
             ..sort((a, b) => b.date.compareTo(a.date));
 
           if (sortedRoutines.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            return RefreshIndicator(
+              onRefresh: () async {
+                await workoutProvider.refreshWorkouts();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Icon(
-                    Icons.fitness_center,
-                    size: 64,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No routines wrapped up... Let\'s finish strong!',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.fitness_center,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No routines wrapped up... Let\'s finish strong!',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Complete your first routine to see your history',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Pull down to refresh',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Complete your first routine to see your history',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: sortedRoutines.length,
-            itemBuilder: (context, index) {
-              final routine = sortedRoutines[index];
-              return RoutineCard(
-                routine: routine,
-                showEditButton: true,
-                onDelete: () =>
-                    _showDeleteRoutineDialog(context, routine, workoutProvider),
-              );
+          return RefreshIndicator(
+            onRefresh: () async {
+              await workoutProvider.refreshWorkouts();
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: sortedRoutines.length,
+              itemBuilder: (context, index) {
+                final routine = sortedRoutines[index];
+                return RoutineCard(
+                  routine: routine,
+                  showEditButton: true,
+                  onDelete: () => _showDeleteRoutineDialog(
+                      context, routine, workoutProvider),
+                );
+              },
+            ),
           );
         },
       ),

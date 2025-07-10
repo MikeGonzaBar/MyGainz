@@ -4,6 +4,7 @@ import '../models/exercise.dart';
 import '../models/routine.dart';
 import '../providers/auth_provider.dart';
 import '../services/workout_firestore_service.dart';
+import '../utils/muscle_group_options.dart';
 import '../widgets/category_filter.dart';
 import '../widgets/exercise_library_card.dart';
 import '../widgets/routine_library_card.dart';
@@ -20,7 +21,7 @@ class ExercisePage extends StatefulWidget {
 class _ExercisePageState extends State<ExercisePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedCategory = 'All';
+  List<String> _selectedCategories = ['All'];
 
   // Lists will be loaded from Firestore
   List<Exercise> _exercises = [];
@@ -38,12 +39,14 @@ class _ExercisePageState extends State<ExercisePage>
   }
 
   List<Exercise> get filteredExercises {
-    if (_selectedCategory == 'All') {
+    if (_selectedCategories.contains('All') || _selectedCategories.isEmpty) {
       return _exercises;
     } else {
       return _exercises
           .where(
-            (exercise) => exercise.targetMuscles.contains(_selectedCategory),
+            (exercise) => exercise.targetMuscles.any(
+              (muscle) => _selectedCategories.contains(muscle),
+            ),
           )
           .toList();
     }
@@ -61,6 +64,112 @@ class _ExercisePageState extends State<ExercisePage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // Handle category selection with multiple selection support
+  void _handleCategorySelection(String category) {
+    setState(() {
+      if (category == 'All') {
+        // If "All" is selected, clear other selections and set only "All"
+        _selectedCategories = ['All'];
+      } else {
+        // Remove "All" if it's currently selected and we're selecting a specific category
+        if (_selectedCategories.contains('All')) {
+          _selectedCategories.remove('All');
+        }
+
+        // Toggle the selected category
+        if (_selectedCategories.contains(category)) {
+          _selectedCategories.remove(category);
+          // If no categories are selected, default back to "All"
+          if (_selectedCategories.isEmpty) {
+            _selectedCategories = ['All'];
+          }
+        } else {
+          _selectedCategories.add(category);
+        }
+      }
+    });
+  }
+
+  // Build filter chips with smart ordering: Selected filters first, then unselected
+  List<Widget> _buildFilterChips() {
+    final List<Widget> chips = [];
+
+    // 1. Always add "All" first
+    chips.add(
+      Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: CategoryFilter(
+          category: 'All',
+          isSelected: _selectedCategories.contains('All'),
+          onTap: () => _handleCategorySelection('All'),
+        ),
+      ),
+    );
+
+    // 2. Add selected muscle groups (excluding "All")
+    final selectedMuscles =
+        _selectedCategories.where((c) => c != 'All').toList();
+    for (final muscle in selectedMuscles) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: CategoryFilter(
+            category: muscle,
+            isSelected: true,
+            onTap: () => _handleCategorySelection(muscle),
+          ),
+        ),
+      );
+    }
+
+    // 3. Add clear button if there are selected filters
+    if (selectedMuscles.isNotEmpty) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: InkWell(
+            onTap: () => setState(() => _selectedCategories = ['All']),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade300),
+                color: Colors.red.shade50,
+              ),
+              child: Text(
+                'Clear (${selectedMuscles.length})',
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 4. Add unselected muscle groups
+    final unselectedMuscles = MuscleGroupOptions.all
+        .where((muscle) => !_selectedCategories.contains(muscle))
+        .toList();
+    for (final muscle in unselectedMuscles) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: CategoryFilter(
+            category: muscle,
+            isSelected: false,
+            onTap: () => _handleCategorySelection(muscle),
+          ),
+        ),
+      );
+    }
+
+    return chips;
   }
 
   // Load exercises and routines from Firestore
@@ -493,49 +602,14 @@ class _ExercisePageState extends State<ExercisePage>
                   // Exercises tab
                   Column(
                     children: [
-                      // Category filter
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SingleChildScrollView(
+                      // Category filter - Horizontal scroll with selected filters first
+                      Container(
+                        height: 50,
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ListView(
                           scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              CategoryFilter(
-                                category: 'All',
-                                isSelected: _selectedCategory == 'All',
-                                onTap: () =>
-                                    setState(() => _selectedCategory = 'All'),
-                              ),
-                              const SizedBox(width: 8),
-                              CategoryFilter(
-                                category: 'Chest',
-                                isSelected: _selectedCategory == 'Chest',
-                                onTap: () =>
-                                    setState(() => _selectedCategory = 'Chest'),
-                              ),
-                              const SizedBox(width: 8),
-                              CategoryFilter(
-                                category: 'Back',
-                                isSelected: _selectedCategory == 'Back',
-                                onTap: () =>
-                                    setState(() => _selectedCategory = 'Back'),
-                              ),
-                              const SizedBox(width: 8),
-                              CategoryFilter(
-                                category: 'Lower Body',
-                                isSelected: _selectedCategory == 'Lower Body',
-                                onTap: () => setState(
-                                    () => _selectedCategory = 'Lower Body'),
-                              ),
-                              const SizedBox(width: 8),
-                              CategoryFilter(
-                                category: 'Core',
-                                isSelected: _selectedCategory == 'Core',
-                                onTap: () =>
-                                    setState(() => _selectedCategory = 'Core'),
-                              ),
-                            ],
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          children: _buildFilterChips(),
                         ),
                       ),
                       // Exercise list

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/workout_provider.dart';
 import 'home_page.dart';
 import 'exercise_page.dart';
 import 'log_page.dart';
@@ -56,6 +58,39 @@ class _MainFrameState extends State<MainFrame> {
             ),
           ],
         ),
+        actions: [
+          Consumer<WorkoutProvider>(
+            builder: (context, workoutProvider, child) {
+              return IconButton(
+                icon: workoutProvider.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.refresh, color: Colors.white),
+                onPressed: workoutProvider.isLoading
+                    ? null
+                    : () async {
+                        await workoutProvider.refreshWorkouts();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Data refreshed!'),
+                              duration: Duration(seconds: 1),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
+                tooltip: 'Refresh Data',
+              );
+            },
+          ),
+        ],
       ),
       body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(

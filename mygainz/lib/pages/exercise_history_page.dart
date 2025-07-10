@@ -28,50 +28,77 @@ class ExerciseHistoryPage extends StatelessWidget {
             ..sort((a, b) => b.date.compareTo(a.date));
 
           if (sortedExercises.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            return RefreshIndicator(
+              onRefresh: () async {
+                await workoutProvider.refreshWorkouts();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Icon(
-                    Icons.fitness_center,
-                    size: 64,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nothing recent here... Time to break a sweat!',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.fitness_center,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nothing recent here... Time to break a sweat!',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start logging your workouts to see your progress',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Pull down to refresh',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Start logging your workouts to see your progress',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: sortedExercises.length,
-            itemBuilder: (context, index) {
-              final exercise = sortedExercises[index];
-              return ExerciseCard(
-                exercise: exercise,
-                showEditButton: true,
-                onDelete: () => _showDeleteExerciseDialog(
-                    context, exercise, workoutProvider),
-              );
+          return RefreshIndicator(
+            onRefresh: () async {
+              await workoutProvider.refreshWorkouts();
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: sortedExercises.length,
+              itemBuilder: (context, index) {
+                final exercise = sortedExercises[index];
+                return ExerciseCard(
+                  exercise: exercise,
+                  showEditButton: true,
+                  onDelete: () => _showDeleteExerciseDialog(
+                      context, exercise, workoutProvider),
+                );
+              },
+            ),
           );
         },
       ),

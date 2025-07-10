@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2024-12-30
+
+### Fixed
+- **setState After Dispose Error** - Resolved critical crashes in ExercisePage when navigating away during async operations (Firestore saves/deletes)
+- **BuildContext Across Async Gaps** - Fixed linting warnings in ExerciseCard and RoutineCard by moving provider calls before async operations
+- **Memory Leak Prevention** - Added comprehensive `mounted` checks before all setState calls to prevent memory leaks
+- **Widget Lifecycle Safety** - Ensured all async callbacks properly respect widget disposal state
+
+### Enhanced
+- **Code Quality** - Eliminated all Flutter linter warnings for better code maintainability
+- **App Stability** - Improved overall app stability by preventing state updates on disposed widgets
+- **Error Prevention** - Proactive checks to prevent crashes during navigation and async operations
+- **Development Experience** - Cleaner codebase with zero linting issues
+
+### Technical Improvements
+- **Async Safety Guards** - Added mounted checks in all async operations: `_loadExercisesAndRoutines()`, exercise CRUD operations, routine CRUD operations
+- **Provider Safety** - Moved `Provider.of<UnitsProvider>` and `Provider.of<WorkoutProvider>` calls before await operations
+- **Memory Management** - Proper widget lifecycle management preventing setState calls on defunct widgets
+- **Best Practices** - Applied Flutter best practices for async operations in StatefulWidgets
+
 ## [2.0.3] - 2024-12-29
 
 ### Fixed

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'providers/auth_provider.dart';
-import 'providers/units_provider.dart';
-import 'providers/workout_provider.dart';
-import 'pages/login_page.dart';
-import 'pages/main_frame.dart';
+import 'core/providers/auth_provider.dart';
+import 'core/providers/units_provider.dart';
+import 'features/exercises/providers/workout_provider.dart';
+import 'features/auth/pages/login_page.dart';
+import 'navigation/main_frame.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

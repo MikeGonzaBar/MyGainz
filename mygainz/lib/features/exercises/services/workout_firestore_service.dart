@@ -732,6 +732,24 @@ class WorkoutFirestoreService extends FirestoreService {
     }
   }
 
+  // Delete personal record
+  Future<void> deletePersonalRecord(String recordId) async {
+    try {
+      await firestore
+          .collection(_personalRecordsCollection)
+          .doc(recordId)
+          .delete();
+      if (kDebugMode) {
+        print('Personal record deleted from Firestore: $recordId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting personal record: $e');
+      }
+      throw Exception(handleFirestoreError(e));
+    }
+  }
+
   // ==================== ACHIEVEMENTS ====================
 
   // Save achievement
@@ -747,6 +765,8 @@ class WorkoutFirestoreService extends FirestoreService {
         'type': achievement.type.toString(),
         'exerciseName': achievement.exerciseName,
         'value': achievement.value,
+        'linkedExerciseId': achievement.linkedExerciseId,
+        'linkedPersonalRecordId': achievement.linkedPersonalRecordId,
         'createdAt': dateTimeToTimestamp(DateTime.now()),
       };
 
@@ -780,6 +800,55 @@ class WorkoutFirestoreService extends FirestoreService {
     } catch (e) {
       if (kDebugMode) {
         print('Error getting achievements: $e');
+      }
+      throw Exception(handleFirestoreError(e));
+    }
+  }
+
+  // Update achievement
+  Future<void> updateAchievement(Achievement achievement) async {
+    try {
+      final achievementDoc =
+          firestore.collection(_achievementsCollection).doc(achievement.id);
+
+      final achievementData = {
+        'userId': authenticatedUserId,
+        'title': achievement.title,
+        'description': achievement.description,
+        'achievedDate': dateTimeToTimestamp(achievement.achievedDate),
+        'type': achievement.type.toString(),
+        'exerciseName': achievement.exerciseName,
+        'value': achievement.value,
+        'linkedExerciseId': achievement.linkedExerciseId,
+        'linkedPersonalRecordId': achievement.linkedPersonalRecordId,
+        'updatedAt': dateTimeToTimestamp(DateTime.now()),
+      };
+
+      await achievementDoc.update(achievementData);
+      if (kDebugMode) {
+        print('Achievement updated in Firestore: ${achievement.title}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating achievement: $e');
+      }
+      throw Exception(handleFirestoreError(e));
+    }
+  }
+
+  // Delete achievement
+  Future<void> deleteAchievement(String achievementId) async {
+    try {
+      await firestore
+          .collection(_achievementsCollection)
+          .doc(achievementId)
+          .delete();
+      if (kDebugMode) {
+        print('Achievement deleted from Firestore: $achievementId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting achievement: $e');
       }
       throw Exception(handleFirestoreError(e));
     }
@@ -948,6 +1017,8 @@ class WorkoutFirestoreService extends FirestoreService {
       ),
       exerciseName: data['exerciseName'],
       value: data['value']?.toDouble(),
+      linkedExerciseId: data['linkedExerciseId'],
+      linkedPersonalRecordId: data['linkedPersonalRecordId'],
     );
   }
 }

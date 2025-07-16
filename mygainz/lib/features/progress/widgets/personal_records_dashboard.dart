@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../exercises/providers/workout_provider.dart';
@@ -289,12 +290,110 @@ class PersonalRecordsDashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Recent Achievements',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          children: [
+            Text(
+              'Recent Achievements',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            // DEBUG: Achievement recalculation button (only in debug mode)
+            if (kDebugMode) ...[
+              Consumer<WorkoutProvider>(
+                builder: (context, workoutProvider, child) {
+                  return ElevatedButton.icon(
+                    onPressed: () async {
+                      // Show confirmation dialog
+                      final shouldRecalculate = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('DEBUG: Recalculate All Data'),
+                          content: const Text(
+                            'This will delete all current achievements AND personal records, then recalculate them from scratch based on your current exercise data. This action cannot be undone.\n\nContinue?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Recalculate'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (shouldRecalculate == true) {
+                        // Show loading indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const AlertDialog(
+                            content: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 16),
+                                Text('Recalculating all data...'),
+                              ],
+                            ),
+                          ),
+                        );
+
+                        try {
+                          await workoutProvider
+                              .debugRecalculateAllAchievements();
+
+                          if (context.mounted) {
+                            Navigator.of(context).pop(); // Close loading dialog
+
+                            // Show success message
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'DEBUG: Full recalculation completed! Generated ${workoutProvider.personalRecords.length} personal records and ${workoutProvider.achievements.length} achievements.',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.of(context).pop(); // Close loading dialog
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'DEBUG: Error recalculating all data: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('DEBUG: Recalc'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 8),
         ...achievements
@@ -411,6 +510,106 @@ class PersonalRecordsDashboard extends StatelessWidget {
                   fontSize: 14,
                 ),
               ),
+
+              // DEBUG: Achievement recalculation button (only in debug mode)
+              if (kDebugMode) ...[
+                const SizedBox(height: 16),
+                Consumer<WorkoutProvider>(
+                  builder: (context, workoutProvider, child) {
+                    return ElevatedButton.icon(
+                      onPressed: () async {
+                        // Show confirmation dialog
+                        final shouldRecalculate = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title:
+                                const Text('DEBUG: Recalculate Achievements'),
+                            content: const Text(
+                              'This will delete all current achievements and recalculate them from scratch based on your current exercise data. This action cannot be undone.\n\nContinue?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Recalculate'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (shouldRecalculate == true) {
+                          // Show loading indicator
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const AlertDialog(
+                              content: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(width: 16),
+                                  Text('Recalculating all data...'),
+                                ],
+                              ),
+                            ),
+                          );
+
+                          try {
+                            await workoutProvider
+                                .debugRecalculateAllAchievements();
+
+                            if (context.mounted) {
+                              Navigator.of(context)
+                                  .pop(); // Close loading dialog
+
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'DEBUG: Full recalculation completed! Generated ${workoutProvider.personalRecords.length} personal records and ${workoutProvider.achievements.length} achievements.',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              Navigator.of(context)
+                                  .pop(); // Close loading dialog
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'DEBUG: Error recalculating all data: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('DEBUG: Recalculate All Data'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),

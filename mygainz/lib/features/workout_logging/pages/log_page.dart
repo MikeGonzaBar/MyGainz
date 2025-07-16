@@ -1849,7 +1849,7 @@ class _LogPageState extends State<LogPage> {
               if (averageWeight > 0 && averageReps > 0) ...[
                 const SizedBox(width: 4),
                 _buildStatChip(
-                  '${unitsProvider.formatWeight(averageWeight)} × $averageReps',
+                  '${averageWeight.toStringAsFixed(1)} ${unitsProvider.weightUnit} × $averageReps',
                   Icons.fitness_center,
                 ),
               ] else ...[
@@ -1857,7 +1857,7 @@ class _LogPageState extends State<LogPage> {
                 if (averageWeight > 0) ...[
                   const SizedBox(width: 4),
                   _buildStatChip(
-                    unitsProvider.formatWeight(averageWeight),
+                    '${averageWeight.toStringAsFixed(1)} ${unitsProvider.weightUnit}',
                     Icons.fitness_center,
                   ),
                 ],
@@ -1936,7 +1936,9 @@ class _LogPageState extends State<LogPage> {
               const SizedBox(width: 12),
               if (weight > 0 || reps > 0) ...[
                 Text(
-                  weight > 0 ? unitsProvider.formatWeight(weight) : '-',
+                  weight > 0
+                      ? '${weight.toStringAsFixed(1)} ${unitsProvider.weightUnit}'
+                      : '-',
                   style: TextStyle(
                     fontSize: 12,
                     color: weight > 0 ? Colors.black87 : Colors.grey.shade500,

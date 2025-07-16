@@ -132,6 +132,12 @@ class Achievement {
   final String? exerciseName;
   final double? value;
 
+  // NEW: Linking fields to track what triggered this achievement
+  final String?
+      linkedExerciseId; // ID of the exercise that triggered this achievement
+  final String?
+      linkedPersonalRecordId; // ID of the personal record that triggered this achievement
+
   Achievement({
     required this.id,
     required this.title,
@@ -140,6 +146,8 @@ class Achievement {
     required this.type,
     this.exerciseName,
     this.value,
+    this.linkedExerciseId,
+    this.linkedPersonalRecordId,
   });
 
   Map<String, dynamic> toJson() {
@@ -151,6 +159,8 @@ class Achievement {
       'type': type.toString(),
       'exerciseName': exerciseName,
       'value': value,
+      'linkedExerciseId': linkedExerciseId,
+      'linkedPersonalRecordId': linkedPersonalRecordId,
     };
   }
 
@@ -165,6 +175,34 @@ class Achievement {
       ),
       exerciseName: json['exerciseName'],
       value: json['value']?.toDouble(),
+      linkedExerciseId: json['linkedExerciseId'],
+      linkedPersonalRecordId: json['linkedPersonalRecordId'],
+    );
+  }
+
+  // Helper method to create a copy with updated fields
+  Achievement copyWith({
+    String? id,
+    String? title,
+    String? description,
+    DateTime? achievedDate,
+    AchievementType? type,
+    String? exerciseName,
+    double? value,
+    String? linkedExerciseId,
+    String? linkedPersonalRecordId,
+  }) {
+    return Achievement(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      achievedDate: achievedDate ?? this.achievedDate,
+      type: type ?? this.type,
+      exerciseName: exerciseName ?? this.exerciseName,
+      value: value ?? this.value,
+      linkedExerciseId: linkedExerciseId ?? this.linkedExerciseId,
+      linkedPersonalRecordId:
+          linkedPersonalRecordId ?? this.linkedPersonalRecordId,
     );
   }
 }

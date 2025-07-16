@@ -71,8 +71,10 @@ class PersonalRecordService {
   // Generate achievements based on PRs and workout data
   static List<Achievement> generateAchievements(
     List<PersonalRecord> personalRecords,
-    List<LoggedRoutine> workoutHistory,
-  ) {
+    List<LoggedRoutine> workoutHistory, {
+    String? linkedExerciseId,
+    String? linkedPersonalRecordId,
+  }) {
     final achievements = <Achievement>[];
     final now = DateTime.now();
 
@@ -91,6 +93,8 @@ class PersonalRecordService {
         type: AchievementType.weight,
         exerciseName: firstPR.exerciseName,
         value: firstPR.primaryValue,
+        linkedExerciseId: linkedExerciseId,
+        linkedPersonalRecordId: firstPR.id,
       ));
     }
 

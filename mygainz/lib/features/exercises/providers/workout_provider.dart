@@ -835,6 +835,9 @@ class WorkoutProvider with ChangeNotifier {
           });
         }
 
+        // Recalculate achievements for this exercise
+        await _recalculateAchievementsForExercise(exerciseId);
+
         // Refresh data to ensure UI is up-to-date
         await refreshWorkouts();
         if (kDebugMode) {
@@ -1042,6 +1045,10 @@ class WorkoutProvider with ChangeNotifier {
 
       // Delete from local list and refresh data
       _loggedExercises.removeWhere((ex) => ex.id == exerciseId);
+
+      // Invalidate achievements linked to this exercise
+      await _invalidateAchievementsForDeletedExercise(exerciseId);
+
       await refreshWorkouts();
       if (kDebugMode) {
         print('Exercise deleted from Firestore: $exerciseId');
@@ -1300,8 +1307,11 @@ class WorkoutProvider with ChangeNotifier {
 
           _personalRecords.add(updatedRecord);
 
-          // Generate new achievements
-          await _generateAchievements();
+          // Generate new achievements with linking
+          await _generateAchievements(
+            linkedExerciseId: exercise.id,
+            linkedPersonalRecordId: updatedRecord.id,
+          );
 
           if (kDebugMode) {
             print(
@@ -1430,13 +1440,22 @@ class WorkoutProvider with ChangeNotifier {
     }
 
     // Generate new achievements after cardio PRs
-    await _generateAchievements();
+    await _generateAchievements(
+      linkedExerciseId: exercise.id,
+    );
   }
 
   // Generate achievements
-  Future<void> _generateAchievements() async {
+  Future<void> _generateAchievements({
+    String? linkedExerciseId,
+    String? linkedPersonalRecordId,
+  }) async {
     final newAchievements = PersonalRecordService.generateAchievements(
-        _personalRecords, _loggedRoutines);
+      _personalRecords,
+      _loggedRoutines,
+      linkedExerciseId: linkedExerciseId,
+      linkedPersonalRecordId: linkedPersonalRecordId,
+    );
 
     for (final achievement in newAchievements) {
       // Check if achievement already exists
@@ -1456,6 +1475,8 @@ class WorkoutProvider with ChangeNotifier {
             type: achievement.type,
             exerciseName: achievement.exerciseName,
             value: achievement.value,
+            linkedExerciseId: achievement.linkedExerciseId,
+            linkedPersonalRecordId: achievement.linkedPersonalRecordId,
           );
 
           _achievements.add(updatedAchievement);
@@ -1498,6 +1519,296 @@ class WorkoutProvider with ChangeNotifier {
         .where((a) => a.achievedDate.isAfter(cutoffDate))
         .toList()
       ..sort((a, b) => b.achievedDate.compareTo(a.achievedDate));
+  }
+
+  // DEBUG: Clear all achievements and personal records, then recalculate from scratch
+  Future<void> debugRecalculateAllAchievements() async {
+    if (!kDebugMode) {
+      if (kDebugMode) {
+        print('Debug recalculation only available in debug mode');
+      }
+      return;
+    }
+
+    try {
+      if (kDebugMode) {
+        print(
+            'DEBUG: Starting full recalculation (achievements + personal records)...');
+      }
+
+      // Step 1: Delete all current achievements from Firestore
+      for (final achievement in _achievements) {
+        try {
+          await _workoutFirestoreService.deleteAchievement(achievement.id);
+          if (kDebugMode) {
+            print('DEBUG: Deleted achievement: ${achievement.title}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('DEBUG: Error deleting achievement ${achievement.id}: $e');
+          }
+        }
+      }
+
+      // Step 2: Delete all current personal records from Firestore
+      for (final personalRecord in _personalRecords) {
+        try {
+          await _workoutFirestoreService
+              .deletePersonalRecord(personalRecord.id);
+          if (kDebugMode) {
+            print(
+                'DEBUG: Deleted personal record: ${personalRecord.exerciseName} - ${personalRecord.type}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+                'DEBUG: Error deleting personal record ${personalRecord.id}: $e');
+          }
+        }
+      }
+
+      // Step 3: Clear local lists
+      _achievements.clear();
+      _personalRecords.clear();
+
+      // Step 4: Collect all exercises (individual + routine exercises)
+      final allExercises = [
+        ..._loggedExercises,
+        // Include exercises from routines
+        ...(_loggedRoutines.expand((routine) => routine.exercises).toList()),
+      ];
+
+      if (kDebugMode) {
+        print(
+            'DEBUG: Processing ${allExercises.length} exercises for personal records...');
+      }
+
+      // Step 5: Recalculate personal records from scratch
+      // Sort exercises by date to ensure proper PR progression
+      final sortedExercises = allExercises.toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+
+      for (final exercise in sortedExercises) {
+        if (exercise.isStrength &&
+            exercise.averageWeight != null &&
+            exercise.averageReps != null) {
+          // Check if this exercise would be a new personal record
+          if (PersonalRecordService.isNewPersonalRecord(
+              exercise, _personalRecords)) {
+            // Calculate weight and reps for PR (use best set if available)
+            double weightForPR = exercise.averageWeight!;
+            int repsForPR = exercise.averageReps!;
+
+            if (exercise.individualSets != null &&
+                exercise.individualSets!.isNotEmpty) {
+              final bestSet = exercise.bestSet;
+              if (bestSet != null) {
+                weightForPR = bestSet.weight;
+                repsForPR = bestSet.reps;
+              }
+            }
+
+            // Calculate 1RM
+            final oneRepMax = PersonalRecordService.calculateOneRepMax(
+                weightForPR, repsForPR);
+
+            // Create new personal record
+            final personalRecord = PersonalRecord(
+              id: DateTime.now().millisecondsSinceEpoch.toString() +
+                  '_${exercise.id}',
+              exerciseId: exercise.exerciseId,
+              exerciseName: exercise.exerciseName,
+              date: exercise.date,
+              equipment: exercise.equipment,
+              type: PersonalRecordType.weight,
+              weight: weightForPR,
+              reps: repsForPR,
+              sets: exercise.totalSets,
+              oneRepMax: oneRepMax,
+            );
+
+            try {
+              // Save to Firestore
+              final firestoreId = await _workoutFirestoreService
+                  .savePersonalRecord(personalRecord);
+
+              // Update local list with Firestore ID
+              final updatedRecord = PersonalRecord(
+                id: firestoreId,
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                date: exercise.date,
+                equipment: exercise.equipment,
+                type: PersonalRecordType.weight,
+                weight: weightForPR,
+                reps: repsForPR,
+                sets: exercise.totalSets,
+                oneRepMax: oneRepMax,
+              );
+
+              _personalRecords.add(updatedRecord);
+
+              if (kDebugMode) {
+                print(
+                    'DEBUG: Created PR: ${exercise.exerciseName} - ${weightForPR}kg × ${repsForPR} reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('DEBUG: Error saving personal record: $e');
+              }
+            }
+          }
+        }
+
+        // TODO: Add cardio personal records recalculation here if needed
+        // For now, focusing on strength exercises
+      }
+
+      if (kDebugMode) {
+        print(
+            'DEBUG: Personal records recalculation completed! Generated ${_personalRecords.length} personal records.');
+        print('DEBUG: Starting achievement generation...');
+      }
+
+      // Step 6: Generate achievements based on new personal records
+      // Process each exercise again to generate achievements with proper linking
+      for (final exercise in sortedExercises) {
+        if (exercise.isStrength &&
+            exercise.averageWeight != null &&
+            exercise.averageReps != null) {
+          // Find the personal record for this exercise
+          final relatedPR = _personalRecords
+              .where((pr) => pr.exerciseId == exercise.exerciseId)
+              .where((pr) => pr.date.isAtSameMomentAs(exercise.date))
+              .firstOrNull;
+
+          if (relatedPR != null) {
+            // Generate achievements for this exercise
+            await _generateAchievements(
+              linkedExerciseId: exercise.id,
+              linkedPersonalRecordId: relatedPR.id,
+            );
+          }
+        }
+      }
+
+      // Step 7: Generate general achievements (milestones, consistency, etc.)
+      await _generateAchievements();
+
+      notifyListeners();
+
+      if (kDebugMode) {
+        print('DEBUG: Full recalculation completed!');
+        print('DEBUG: Generated ${_personalRecords.length} personal records');
+        print('DEBUG: Generated ${_achievements.length} achievements');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('DEBUG: Error during full recalculation: $e');
+      }
+    }
+  }
+
+  // Recalculate achievements when linked exercises are updated
+  Future<void> _recalculateAchievementsForExercise(String exerciseId) async {
+    try {
+      // Find achievements linked to this exercise
+      final linkedAchievements =
+          _achievements.where((a) => a.linkedExerciseId == exerciseId).toList();
+
+      if (linkedAchievements.isEmpty) return;
+
+      // Get the updated exercise
+      final exercise = _loggedExercises.firstWhere((ex) => ex.id == exerciseId);
+
+      // Check if the exercise still qualifies for its achievements
+      for (final achievement in linkedAchievements) {
+        bool shouldKeepAchievement = true;
+
+        // Check if achievement is still valid based on the updated exercise
+        if (achievement.linkedPersonalRecordId != null) {
+          // Find the linked personal record
+          final linkedPR = _personalRecords
+              .where((pr) => pr.id == achievement.linkedPersonalRecordId)
+              .firstOrNull;
+
+          if (linkedPR != null) {
+            // Check if the exercise still meets the PR criteria
+            if (exercise.isStrength &&
+                linkedPR.type == PersonalRecordType.weight) {
+              final currentWeight = exercise.averageWeight ?? 0;
+              final currentReps = exercise.averageReps ?? 0;
+
+              // If the updated exercise no longer meets the PR threshold, invalidate achievement
+              if (currentWeight < (linkedPR.weight ?? 0) ||
+                  currentReps < (linkedPR.reps ?? 0)) {
+                shouldKeepAchievement = false;
+              }
+            }
+          }
+        }
+
+        if (!shouldKeepAchievement) {
+          // Remove achievement from local list
+          _achievements.removeWhere((a) => a.id == achievement.id);
+
+          // Delete from Firestore
+          try {
+            await _workoutFirestoreService.deleteAchievement(achievement.id);
+            if (kDebugMode) {
+              print(
+                  'Achievement removed due to exercise update: ${achievement.title}');
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error deleting achievement from Firestore: $e');
+            }
+          }
+        }
+      }
+
+      // Regenerate achievements to see if new ones should be created
+      await _generateAchievements(linkedExerciseId: exerciseId);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error recalculating achievements for exercise: $e');
+      }
+    }
+  }
+
+  // Invalidate achievements when linked exercises are deleted
+  Future<void> _invalidateAchievementsForDeletedExercise(
+      String exerciseId) async {
+    try {
+      // Find achievements linked to this exercise
+      final linkedAchievements =
+          _achievements.where((a) => a.linkedExerciseId == exerciseId).toList();
+
+      if (linkedAchievements.isEmpty) return;
+
+      // Remove all achievements linked to this exercise
+      for (final achievement in linkedAchievements) {
+        // Remove from local list
+        _achievements.removeWhere((a) => a.id == achievement.id);
+
+        // Delete from Firestore
+        try {
+          await _workoutFirestoreService.deleteAchievement(achievement.id);
+          if (kDebugMode) {
+            print(
+                'Achievement removed due to exercise deletion: ${achievement.title}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error deleting achievement from Firestore: $e');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error invalidating achievements for deleted exercise: $e');
+      }
+    }
   }
 
   // Update a logged exercise with individual sets
@@ -1548,6 +1859,10 @@ class WorkoutProvider with ChangeNotifier {
 
         // Update local list
         _loggedExercises[index] = updatedExercise;
+
+        // Recalculate achievements for this exercise
+        await _recalculateAchievementsForExercise(exerciseId);
+
         notifyListeners();
         if (kDebugMode) {
           print(

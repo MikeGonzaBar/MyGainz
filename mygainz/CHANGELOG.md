@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.4] - 2024-12-30
+## [2.0.5] - 2025-07-16
+### Added
+- **Debug Data Recalculation Tool**
+    - Added a developer/debug-only button in the Progress tab to delete and fully recalculate all personal records and achievements from scratch, based on current exercise and routine data.
+    - The tool provides confirmation dialogs, progress feedback, and detailed debug logging.
+### Enhanced
+- **Data Integrity & Linking**:
+    - Achievements and personal records are now explicitly linked to the exercises and sets that created them.
+    - Editing or deleting an exercise will automatically update or remove any affected PRs and achievements, ensuring your progress and awards are always accurate and up-to-date.
+## [2.0.4] - 2025-07-10
 
 ### Fixed
 - **setState After Dispose Error** - Resolved critical crashes in ExercisePage when navigating away during async operations (Firestore saves/deletes)
@@ -25,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Memory Management** - Proper widget lifecycle management preventing setState calls on defunct widgets
 - **Best Practices** - Applied Flutter best practices for async operations in StatefulWidgets
 
-## [2.0.3] - 2024-12-29
+## [2.0.3] - 2025-07-10
 
 ### Fixed
 - **Critical setState After Dispose Error** - Resolved crashes when switching tabs during async operations in LogPage
@@ -53,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Handling** - Enhanced async operation safety and error recovery mechanisms
 - **Memory Management** - Proper widget lifecycle management preventing memory leaks
 
-## [2.0.2] - 2024-12-29
+## [2.0.2] - 2025-07-10
 
 ### Fixed
 - **Migration Script Removal** - Eliminated problematic weight migration script that was causing ANR crashes and app freezing on startup
@@ -85,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved State Management** - More reliable data refresh and synchronization patterns
 - **Performance Optimization** - Faster app initialization without heavy background operations on the main thread
 
-## [2.0.1] - 2024-12-23
+## [2.0.1] - 2025-07-09
 
 ### Fixed
 - **Critical Unit Conversion Bug** - Resolved major issue where weights were incorrectly stored in user's input unit instead of being converted to kg (base unit)
@@ -124,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Firestore Synchronization** - Updates both local cache and cloud database
 - **Backup Safety** - Migration preserves original data structure while fixing weight values
 
-## [2.0.0] - 2024-12-22
+## [2.0.0] - 2025-07-07
 
 ### Added
 - **Firebase Integration** - Complete migration from local storage to Firestore cloud database
@@ -158,7 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data Migration** - Users will need to re-enter data due to new cloud architecture
 - **Authentication Required** - All users must create accounts for cloud sync
 
-## [1.1.3] - 2024-12-21
+## [1.1.3] - 2025-06-09
 
 ### Fixed
 - **Exercise Page UI Overflow** - Fixed RenderFlex overflow (1.5px) in category filter by making it horizontally scrollable
@@ -175,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced `time_period_filter.dart` with SingleChildScrollView wrapper
 - Enhanced exercise page category filters with horizontal scrolling capability
 
-## [1.1.2] - 2024-12-21
+## [1.1.2] - 2025-06-20
 
 ### Fixed
 - **About Section Version** - Fixed hardcoded version display to automatically read from pubspec.yaml
@@ -185,13 +194,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `package_info_plus` dependency for runtime version detection
 - Enhanced About dialog to fetch version information dynamically
 
-## [1.1.1] - 2024-12-21
+## [1.1.1] - 2025-06-09
 
 ### Fixed
 - **Workout Mode Toggle** - Fixed UI bug where selected button didn't properly cover full available space
 - **Visual Consistency** - Improved toggle button appearance and selection behavior
 
-## [1.1.0] - 2024-12-21
+## [1.1.0] - 2025-06-09
 
 ### Added
 - **Exercise History Page** - Complete view of all logged exercises with chronological sorting
@@ -216,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling and user feedback
 - Maintained backwards compatibility with existing data
 
-## [1.0.0] - 2024-12-20
+## [1.0.0] - 2025-06-02
 
 ### Added
 - Initial release of MyGainz fitness tracking application

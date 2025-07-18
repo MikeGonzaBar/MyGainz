@@ -1638,8 +1638,7 @@ class WorkoutProvider with ChangeNotifier {
 
             // Create new personal record
             final personalRecord = PersonalRecord(
-              id: DateTime.now().millisecondsSinceEpoch.toString() +
-                  '_${exercise.id}',
+              id: '${DateTime.now().millisecondsSinceEpoch}_${exercise.id}',
               exerciseId: exercise.exerciseId,
               exerciseName: exercise.exerciseName,
               date: exercise.date,
@@ -1674,7 +1673,7 @@ class WorkoutProvider with ChangeNotifier {
 
               if (kDebugMode) {
                 print(
-                    'DEBUG: Created PR: ${exercise.exerciseName} - ${weightForPR}kg × ${repsForPR} reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
+                    'DEBUG: Created PR: ${exercise.exerciseName} - ${weightForPR}kg × $repsForPR reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
               }
             } catch (e) {
               if (kDebugMode) {

@@ -57,6 +57,8 @@ class _LogPageState extends State<LogPage> {
   final WorkoutFirestoreService _workoutFirestoreService =
       WorkoutFirestoreService();
 
+  String? expandedRoutineExerciseId;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +66,13 @@ class _LogPageState extends State<LogPage> {
     _searchFocusNode.addListener(_onFocusChanged);
     _loadUserData();
     _checkAndPromptResumeDraft();
+    // Set default expandedRoutineExerciseId if in routine mode
+    if (!isExerciseMode && selectedRoutine != null) {
+      expandedRoutineExerciseId = selectedRoutine!.exerciseIds.firstWhere(
+        (id) => !completedExercises.contains(id),
+        orElse: () => selectedRoutine!.exerciseIds.first,
+      );
+    }
   }
 
   @override
@@ -353,6 +362,11 @@ class _LogPageState extends State<LogPage> {
         );
         routineExerciseEquipment[exerciseId] = exercise.equipment.first;
       }
+      // Set default expandedRoutineExerciseId
+      expandedRoutineExerciseId = routine.exerciseIds.firstWhere(
+        (id) => !completedExercises.contains(id),
+        orElse: () => routine.exerciseIds.first,
+      );
     });
   }
 
@@ -404,6 +418,12 @@ class _LogPageState extends State<LogPage> {
   void _focusOnRoutineSet(String exerciseId, int index) {
     setState(() {
       routineFocusedSetIndex[exerciseId] = index;
+    });
+  }
+
+  void _focusOnRoutineExercise(String exerciseId) {
+    setState(() {
+      expandedRoutineExerciseId = exerciseId;
     });
   }
 
@@ -572,8 +592,9 @@ class _LogPageState extends State<LogPage> {
       if (draft.routineId == 'single_exercise' && isExerciseMode) {
         if (kDebugMode) print('[DRAFT] Found single exercise draft');
         await Future.delayed(Duration.zero);
-        if (kDebugMode)
+        if (kDebugMode) {
           print('[DRAFT] Showing resume dialog for single exercise');
+        }
         final shouldResume = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -590,9 +611,10 @@ class _LogPageState extends State<LogPage> {
             ],
           ),
         );
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
               '[DRAFT] User chose: ${shouldResume == true ? 'Resume' : 'Discard'}');
+        }
         if (shouldResume == true) {
           if (kDebugMode) print('[DRAFT] Restoring single exercise from draft');
           _restoreSingleExerciseFromDraft(draft);
@@ -620,18 +642,20 @@ class _LogPageState extends State<LogPage> {
             ],
           ),
         );
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
               '[DRAFT] User chose: ${shouldResume == true ? 'Resume' : 'Discard'}');
+        }
         if (shouldResume == true) {
           _restoreRoutineFromDraft(draft);
         } else {
           await workoutProvider.deleteDraftRoutine();
         }
       } else {
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
               '[DRAFT] Draft exists but does not match current mode or state');
+        }
       }
     } else {
       if (kDebugMode) print('[DRAFT] No draft found');
@@ -1779,9 +1803,76 @@ class _LogPageState extends State<LogPage> {
         ],
 
         // Exercise list
-        ...selectedRoutine?.exerciseIds.map(
-              (exerciseId) => _buildRoutineExerciseCard(exerciseId),
-            ) ??
+        ...selectedRoutine?.exerciseIds.map((exerciseId) {
+              final isExpanded = expandedRoutineExerciseId == exerciseId;
+              final isCompleted = completedExercises.contains(exerciseId);
+              if (isExpanded) {
+                return _buildRoutineExerciseCard(exerciseId);
+              } else {
+                // Minimized card
+                return GestureDetector(
+                  onTap: () => _focusOnRoutineExercise(exerciseId),
+                  child: Card(
+                    color: isCompleted
+                        ? Colors.green.shade50
+                        : Colors.grey.shade100,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isCompleted
+                            ? Colors.green.shade200
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getExerciseById(exerciseId).exerciseName,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isCompleted
+                                        ? Colors.green.shade800
+                                        : Colors.black,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  _getExerciseById(exerciseId)
+                                      .targetMuscles
+                                      .join(', '),
+                                  style: TextStyle(
+                                    color: isCompleted
+                                        ? Colors.green.shade700
+                                        : Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isCompleted)
+                            Icon(Icons.check_circle,
+                                color: Colors.green.shade600, size: 20),
+                          // No checkmark for not completed
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+            }).toList() ??
             [],
 
         const SizedBox(height: 32),

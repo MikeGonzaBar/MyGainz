@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+part 'workout_set.g.dart';
 
 class WorkoutSet {
   final TextEditingController weightController = TextEditingController();
@@ -11,10 +13,15 @@ class WorkoutSet {
 }
 
 // New model for storing individual set data in Firestore
-class WorkoutSetData {
+@HiveType(typeId: 3)
+class WorkoutSetData extends HiveObject {
+  @HiveField(0)
   final double weight;
+  @HiveField(1)
   final int reps;
+  @HiveField(2)
   final Duration? restTime; // Optional rest time between sets
+  @HiveField(3)
   final int setNumber; // Order of the set (1, 2, 3, etc.)
 
   WorkoutSetData({

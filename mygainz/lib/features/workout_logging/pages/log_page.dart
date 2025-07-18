@@ -11,6 +11,7 @@ import '../../exercises/models/workout_set.dart';
 import '../../exercises/utils/equipment_options.dart';
 import '../widgets/workout_mode_toggle.dart';
 import '../../routines/widgets/routine_selection_card.dart';
+import 'package:mygainz/features/routines/models/in_progress_routine.dart';
 
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
@@ -62,6 +63,7 @@ class _LogPageState extends State<LogPage> {
     _searchController.addListener(_onSearchChanged);
     _searchFocusNode.addListener(_onFocusChanged);
     _loadUserData();
+    _checkAndPromptResumeDraft();
   }
 
   @override
@@ -140,6 +142,7 @@ class _LogPageState extends State<LogPage> {
       print('Exercise selected, unfocusing search field'); // Debug
     }
     _searchFocusNode.unfocus();
+    _saveSingleExerciseDraft();
   }
 
   void _createNewExercise() async {
@@ -205,6 +208,7 @@ class _LogPageState extends State<LogPage> {
       sets.add(WorkoutSet());
       focusedSetIndex = sets.length - 1; // Focus on the new set
     });
+    _saveSingleExerciseDraft();
   }
 
   void _removeSet(int index) {
@@ -218,6 +222,7 @@ class _LogPageState extends State<LogPage> {
           focusedSetIndex--;
         }
       });
+      _saveSingleExerciseDraft();
     }
   }
 
@@ -318,6 +323,7 @@ class _LogPageState extends State<LogPage> {
     scaffoldMessenger.showSnackBar(
       const SnackBar(content: Text('Exercise logged successfully!')),
     );
+    await workoutProvider.deleteDraftRoutine();
   }
 
   // Routine mode helper methods
@@ -357,6 +363,7 @@ class _LogPageState extends State<LogPage> {
       final setCount = routineExerciseSets[exerciseId]?.length ?? 0;
       routineFocusedSetIndex[exerciseId] = setCount - 1;
     });
+    _saveRoutineDraft();
   }
 
   void _removeRoutineExerciseSet(String exerciseId, int index) {
@@ -372,6 +379,7 @@ class _LogPageState extends State<LogPage> {
           routineFocusedSetIndex[exerciseId] = currentFocus - 1;
         }
       });
+      _saveRoutineDraft();
     }
   }
 
@@ -383,6 +391,7 @@ class _LogPageState extends State<LogPage> {
         completedExercises.add(exerciseId);
       }
     });
+    _saveRoutineDraft();
   }
 
   // Set focus management methods
@@ -400,7 +409,6 @@ class _LogPageState extends State<LogPage> {
 
   void _saveRoutineWorkout() async {
     if (selectedRoutine == null) return;
-
     final workoutProvider =
         Provider.of<WorkoutProvider>(context, listen: false);
     final unitsProvider = Provider.of<UnitsProvider>(context, listen: false);
@@ -467,6 +475,7 @@ class _LogPageState extends State<LogPage> {
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Routine workout saved successfully!')),
       );
+      await workoutProvider.deleteDraftRoutine();
     } else {
       scaffoldMessenger.showSnackBar(
         const SnackBar(
@@ -554,6 +563,253 @@ class _LogPageState extends State<LogPage> {
     }
   }
 
+  Future<void> _checkAndPromptResumeDraft() async {
+    final workoutProvider =
+        Provider.of<WorkoutProvider>(context, listen: false);
+    final draft = workoutProvider.inProgressRoutineDraft;
+    if (kDebugMode) print('[DRAFT] Checking for draft: $draft');
+    if (draft != null) {
+      if (draft.routineId == 'single_exercise' && isExerciseMode) {
+        if (kDebugMode) print('[DRAFT] Found single exercise draft');
+        await Future.delayed(Duration.zero);
+        if (kDebugMode)
+          print('[DRAFT] Showing resume dialog for single exercise');
+        final shouldResume = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Resume In-Progress Exercise?'),
+            content: const Text(
+                'You have an unfinished exercise. Would you like to continue where you left off?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Discard')),
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Resume')),
+            ],
+          ),
+        );
+        if (kDebugMode)
+          print(
+              '[DRAFT] User chose: ${shouldResume == true ? 'Resume' : 'Discard'}');
+        if (shouldResume == true) {
+          if (kDebugMode) print('[DRAFT] Restoring single exercise from draft');
+          _restoreSingleExerciseFromDraft(draft);
+        } else {
+          await workoutProvider.deleteDraftRoutine();
+        }
+      } else if (draft.routineId != 'single_exercise' &&
+          selectedRoutine == null) {
+        if (kDebugMode) print('[DRAFT] Found routine draft');
+        await Future.delayed(Duration.zero);
+        if (kDebugMode) print('[DRAFT] Showing resume dialog for routine');
+        final shouldResume = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Resume In-Progress Routine?'),
+            content: const Text(
+                'You have an unfinished routine. Would you like to continue where you left off?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Discard')),
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Resume')),
+            ],
+          ),
+        );
+        if (kDebugMode)
+          print(
+              '[DRAFT] User chose: ${shouldResume == true ? 'Resume' : 'Discard'}');
+        if (shouldResume == true) {
+          _restoreRoutineFromDraft(draft);
+        } else {
+          await workoutProvider.deleteDraftRoutine();
+        }
+      } else {
+        if (kDebugMode)
+          print(
+              '[DRAFT] Draft exists but does not match current mode or state');
+      }
+    } else {
+      if (kDebugMode) print('[DRAFT] No draft found');
+    }
+  }
+
+  void _restoreRoutineFromDraft(InProgressRoutine draft) {
+    setState(() {
+      selectedRoutine = availableRoutines.firstWhere(
+        (r) => r.id == draft.routineId,
+        orElse: () => Routine(
+          id: draft.routineId,
+          userId: '',
+          name: draft.name.isNotEmpty ? draft.name : 'Routine',
+          orderIsRequired: draft.orderIsRequired,
+          exerciseIds: draft.exercises.map((e) => e.exerciseId).toList(),
+        ),
+      );
+      routineExerciseSets.clear();
+      routineExerciseEquipment.clear();
+      completedExercises.clear();
+      routineFocusedSetIndex.clear();
+      for (final ex in draft.exercises) {
+        routineExerciseSets[ex.exerciseId] = ex.sets.map((setData) {
+          final set = WorkoutSet();
+          set.weightController.text = setData.weight.toString();
+          set.repsController.text = setData.reps.toString();
+          return set;
+        }).toList();
+        routineExerciseEquipment[ex.exerciseId] = ex.equipment;
+        completedExercises.add(ex.exerciseId);
+        routineFocusedSetIndex[ex.exerciseId] = 0;
+      }
+    });
+  }
+
+  void _restoreSingleExerciseFromDraft(InProgressRoutine draft) {
+    if (kDebugMode) print('[DRAFT] _restoreSingleExerciseFromDraft called');
+    if (draft.exercises.isEmpty) {
+      if (kDebugMode) print('[DRAFT] No exercises in draft to restore');
+      return;
+    }
+    final ex = draft.exercises.first;
+    setState(() {
+      if (kDebugMode) print('[DRAFT] Restoring exercise: ${ex.exerciseName}');
+      selectedExercise = availableExercises.firstWhere(
+        (e) => e.id == ex.exerciseId,
+        orElse: () => Exercise(
+          id: ex.exerciseId,
+          userId: '',
+          exerciseName:
+              ex.exerciseName.isNotEmpty ? ex.exerciseName : 'Exercise',
+          targetMuscles:
+              ex.targetMuscles.isNotEmpty ? ex.targetMuscles : ['General'],
+          equipment: [ex.equipment.isNotEmpty ? ex.equipment : 'Barbell'],
+        ),
+      );
+      selectedEquipment = ex.equipment.isNotEmpty ? ex.equipment : 'Barbell';
+      sets = ex.sets.map((setData) {
+        final set = WorkoutSet();
+        set.weightController.text = setData.weight.toString();
+        set.repsController.text = setData.reps.toString();
+        return set;
+      }).toList();
+      focusedSetIndex = 0;
+      // Cardio fields can be restored here if needed
+    });
+  }
+
+  void _saveRoutineDraft() async {
+    if (selectedRoutine == null) return;
+    final exercises = <InProgressExercise>[];
+    for (final exerciseId in selectedRoutine!.exerciseIds) {
+      final sets = routineExerciseSets[exerciseId] ?? [];
+      final setData = sets
+          .asMap()
+          .entries
+          .map((entry) {
+            final set = entry.value;
+            final weight = double.tryParse(set.weightController.text) ?? 0;
+            final reps = int.tryParse(set.repsController.text) ?? 0;
+            if (weight > 0 && reps > 0) {
+              return WorkoutSetData(
+                weight: weight,
+                reps: reps,
+                restTime: null,
+                setNumber: entry.key + 1,
+              );
+            }
+            return null;
+          })
+          .whereType<WorkoutSetData>()
+          .toList();
+      if (setData.isNotEmpty) {
+        exercises.add(InProgressExercise(
+          id: exerciseId,
+          exerciseId: exerciseId,
+          exerciseName: _getExerciseById(exerciseId).exerciseName,
+          targetMuscles: _getExerciseById(exerciseId).targetMuscles,
+          equipment: routineExerciseEquipment[exerciseId] ?? 'Unknown',
+          sets: setData,
+          lastUpdated: DateTime.now(),
+        ));
+      }
+    }
+    if (exercises.isNotEmpty) {
+      final draft = InProgressRoutine(
+        id: 'draft_1',
+        routineId: selectedRoutine!.id,
+        name: selectedRoutine!.name,
+        targetMuscles: selectedRoutine!.exerciseIds,
+        lastUpdated: DateTime.now(),
+        exercises: exercises,
+        orderIsRequired: selectedRoutine!.orderIsRequired,
+      );
+      final workoutProvider =
+          Provider.of<WorkoutProvider>(context, listen: false);
+      await workoutProvider.saveDraftRoutine(draft);
+    }
+  }
+
+  void _saveSingleExerciseDraft() async {
+    if (!isExerciseMode) return;
+    if (selectedExercise == null) return;
+    final setData = sets
+        .asMap()
+        .entries
+        .map((entry) {
+          final set = entry.value;
+          final weight = double.tryParse(set.weightController.text) ?? 0;
+          final reps = int.tryParse(set.repsController.text) ?? 0;
+          if (weight > 0 && reps > 0) {
+            return WorkoutSetData(
+              weight: weight,
+              reps: reps,
+              restTime: null,
+              setNumber: entry.key + 1,
+            );
+          }
+          return null;
+        })
+        .whereType<WorkoutSetData>()
+        .toList();
+    if (setData.isEmpty) return; // Only save if at least one valid set
+    final exercise = selectedExercise!;
+    final inProgressExercise = InProgressExercise(
+      id: exercise.id,
+      exerciseId: exercise.id,
+      exerciseName: exercise.exerciseName,
+      targetMuscles: exercise.targetMuscles,
+      equipment: selectedEquipment,
+      sets: setData,
+      lastUpdated: DateTime.now(),
+    );
+    final draft = InProgressRoutine(
+      id: 'draft_exercise',
+      routineId: 'single_exercise',
+      name: exercise.exerciseName,
+      targetMuscles: exercise.targetMuscles,
+      lastUpdated: DateTime.now(),
+      exercises: [inProgressExercise],
+      orderIsRequired: false,
+    );
+    final workoutProvider =
+        Provider.of<WorkoutProvider>(context, listen: false);
+    await workoutProvider.saveDraftRoutine(draft);
+  }
+
+  void _onModeChanged(bool isExercise) async {
+    setState(() {
+      isExerciseMode = isExercise;
+      // Optionally reset UI state here if needed
+    });
+    final workoutProvider =
+        Provider.of<WorkoutProvider>(context, listen: false);
+    await workoutProvider.deleteDraftRoutine();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -578,7 +834,7 @@ class _LogPageState extends State<LogPage> {
             const SizedBox(height: 20),
             WorkoutModeToggle(
               isExerciseMode: isExerciseMode,
-              onModeChanged: (mode) => setState(() => isExerciseMode = mode),
+              onModeChanged: _onModeChanged,
             ),
             const SizedBox(height: 24),
             Expanded(
@@ -941,6 +1197,7 @@ class _LogPageState extends State<LogPage> {
                       ? (selected) {
                           if (selected) {
                             setState(() => selectedEquipment = equipment);
+                            _saveSingleExerciseDraft();
                           }
                         }
                       : null,
@@ -1460,14 +1717,14 @@ class _LogPageState extends State<LogPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    selectedRoutine!.name,
+                    selectedRoutine?.name ?? 'Routine',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    selectedRoutine!.orderIsRequired
+                    selectedRoutine?.orderIsRequired == true
                         ? 'Ordered routine'
                         : 'Flexible order',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
@@ -1496,7 +1753,8 @@ class _LogPageState extends State<LogPage> {
         const SizedBox(height: 24),
 
         // Next exercise indicator (for strict order)
-        if (selectedRoutine!.orderIsRequired && nextExercise != null) ...[
+        if (selectedRoutine?.orderIsRequired == true &&
+            nextExercise != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1521,9 +1779,10 @@ class _LogPageState extends State<LogPage> {
         ],
 
         // Exercise list
-        ...selectedRoutine!.exerciseIds.map(
-          (exerciseId) => _buildRoutineExerciseCard(exerciseId),
-        ),
+        ...selectedRoutine?.exerciseIds.map(
+              (exerciseId) => _buildRoutineExerciseCard(exerciseId),
+            ) ??
+            [],
 
         const SizedBox(height: 32),
 
@@ -1552,7 +1811,7 @@ class _LogPageState extends State<LogPage> {
 
   Widget _buildProgressIndicator() {
     final completedCount = completedExercises.length;
-    final totalCount = selectedRoutine!.exerciseIds.length;
+    final totalCount = selectedRoutine?.exerciseIds.length ?? 0;
     final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
 
     return Column(
@@ -1585,9 +1844,9 @@ class _LogPageState extends State<LogPage> {
     final exercise = _getExerciseById(exerciseId);
     final isCompleted = completedExercises.contains(exerciseId);
     final nextExercise = _getNextExercise();
-    final isNext =
-        selectedRoutine!.orderIsRequired && nextExercise?.id == exerciseId;
-    final isDisabled = selectedRoutine!.orderIsRequired &&
+    final isNext = selectedRoutine?.orderIsRequired == true &&
+        nextExercise?.id == exerciseId;
+    final isDisabled = selectedRoutine?.orderIsRequired == true &&
         nextExercise != null &&
         nextExercise.id != exerciseId &&
         !isCompleted; // Don't disable if already completed
@@ -1733,6 +1992,7 @@ class _LogPageState extends State<LogPage> {
                                 routineExerciseEquipment[exerciseId] =
                                     equipment;
                               });
+                              _saveRoutineDraft();
                             }
                           },
                           shape: RoundedRectangleBorder(
@@ -1755,7 +2015,7 @@ class _LogPageState extends State<LogPage> {
                 ),
                 const SizedBox(height: 6),
 
-                ...routineExerciseSets[exerciseId]!.asMap().entries.map((
+                ...(routineExerciseSets[exerciseId] ?? []).asMap().entries.map((
                   entry,
                 ) {
                   final index = entry.key;

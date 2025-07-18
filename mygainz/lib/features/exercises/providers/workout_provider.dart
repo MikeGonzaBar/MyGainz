@@ -3,6 +3,8 @@ import '../../progress/models/personal_record.dart';
 import '../models/workout_set.dart';
 import '../../progress/services/personal_record_service.dart';
 import '../services/workout_firestore_service.dart';
+import 'package:mygainz/features/routines/models/in_progress_routine.dart';
+import 'package:mygainz/features/routines/services/in_progress_routine_service.dart';
 
 class LoggedExercise {
   final String id;
@@ -234,6 +236,9 @@ class WorkoutProvider with ChangeNotifier {
   List<PersonalRecord> _personalRecords = [];
   List<Achievement> _achievements = [];
   bool _isLoading = false;
+  InProgressRoutine? _inProgressRoutineDraft;
+
+  InProgressRoutine? get inProgressRoutineDraft => _inProgressRoutineDraft;
 
   final WorkoutFirestoreService _workoutFirestoreService =
       WorkoutFirestoreService();
@@ -260,8 +265,27 @@ class WorkoutProvider with ChangeNotifier {
     return sorted.take(5).toList();
   }
 
+  // Load draft on provider initialization
   WorkoutProvider() {
     _loadWorkouts();
+    loadDraftRoutine();
+  }
+
+  Future<void> loadDraftRoutine() async {
+    _inProgressRoutineDraft = await InProgressRoutineService.loadDraft();
+    notifyListeners();
+  }
+
+  Future<void> saveDraftRoutine(InProgressRoutine draft) async {
+    _inProgressRoutineDraft = draft;
+    await InProgressRoutineService.saveDraft(draft);
+    notifyListeners();
+  }
+
+  Future<void> deleteDraftRoutine() async {
+    _inProgressRoutineDraft = null;
+    await InProgressRoutineService.deleteDraft();
+    notifyListeners();
   }
 
   // Migration function to create explicit links for existing routine exercises

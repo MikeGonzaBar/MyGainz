@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mygainz/features/routines/models/in_progress_routine.dart';
+import 'package:mygainz/features/exercises/models/workout_set.dart';
 import 'firebase_options.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/units_provider.dart';
@@ -13,6 +16,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await Hive.initFlutter();
+  Hive.registerAdapter(InProgressRoutineAdapter());
+  Hive.registerAdapter(InProgressExerciseAdapter());
+  Hive.registerAdapter(WorkoutSetDataAdapter());
   runApp(const MyApp());
 }
 

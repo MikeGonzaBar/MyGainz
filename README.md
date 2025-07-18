@@ -33,6 +33,11 @@
 
 ## Features
 
+### 📝 In-Progress Draft & Recovery
+- **Automatic Draft Saving:** Your workout progress (routine or single exercise) is automatically saved locally if you leave the app or get interrupted.
+- **Resume Where You Left Off:** When you return, MyGainz prompts you to resume your in-progress log—never lose your data!
+- **Smart Cleanup:** Drafts are only kept if you have meaningful progress, and are deleted when you finish or switch workout modes.
+
 ### 🔐 Authentication & User Management
 - **Secure Authentication:** Email/password login with Firebase Authentication
 - **Dynamic Registration Flow:** Comprehensive user onboarding with personal and fitness metrics
@@ -144,6 +149,10 @@ The dashboard provides:
   - **Equipment Per Set:** Different equipment for each set if needed
   - **Real-time Validation:** Ensures complete and accurate data entry
   - **Cloud Synchronization:** Each set automatically saved to Firestore
+- **Draft Recovery:**
+  - If you leave the app while logging, your progress is saved as a draft.
+  - On return, you’ll be prompted to resume or discard the draft.
+  - Drafts are automatically cleaned up when you finish or switch workout modes.
 
 - **Routine Execution:**
   - **Progress Tracking:** Visual indicators for exercise completion

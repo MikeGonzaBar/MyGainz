@@ -1545,32 +1545,15 @@ class WorkoutProvider with ChangeNotifier {
       ..sort((a, b) => b.achievedDate.compareTo(a.achievedDate));
   }
 
-  // DEBUG: Clear all achievements and personal records, then recalculate from scratch
-  Future<void> debugRecalculateAllAchievements() async {
-    if (!kDebugMode) {
-      if (kDebugMode) {
-        print('Debug recalculation only available in debug mode');
-      }
-      return;
-    }
-
+  // Production-safe: Clear all achievements and personal records, then recalculate from scratch
+  Future<void> recalculateAllAchievements() async {
     try {
-      if (kDebugMode) {
-        print(
-            'DEBUG: Starting full recalculation (achievements + personal records)...');
-      }
-
       // Step 1: Delete all current achievements from Firestore
       for (final achievement in _achievements) {
         try {
           await _workoutFirestoreService.deleteAchievement(achievement.id);
-          if (kDebugMode) {
-            print('DEBUG: Deleted achievement: ${achievement.title}');
-          }
         } catch (e) {
-          if (kDebugMode) {
-            print('DEBUG: Error deleting achievement ${achievement.id}: $e');
-          }
+          // Optionally handle error
         }
       }
 
@@ -1579,15 +1562,8 @@ class WorkoutProvider with ChangeNotifier {
         try {
           await _workoutFirestoreService
               .deletePersonalRecord(personalRecord.id);
-          if (kDebugMode) {
-            print(
-                'DEBUG: Deleted personal record: ${personalRecord.exerciseName} - ${personalRecord.type}');
-          }
         } catch (e) {
-          if (kDebugMode) {
-            print(
-                'DEBUG: Error deleting personal record ${personalRecord.id}: $e');
-          }
+          // Optionally handle error
         }
       }
 
@@ -1598,17 +1574,10 @@ class WorkoutProvider with ChangeNotifier {
       // Step 4: Collect all exercises (individual + routine exercises)
       final allExercises = [
         ..._loggedExercises,
-        // Include exercises from routines
         ...(_loggedRoutines.expand((routine) => routine.exercises).toList()),
       ];
 
-      if (kDebugMode) {
-        print(
-            'DEBUG: Processing ${allExercises.length} exercises for personal records...');
-      }
-
       // Step 5: Recalculate personal records from scratch
-      // Sort exercises by date to ensure proper PR progression
       final sortedExercises = allExercises.toList()
         ..sort((a, b) => a.date.compareTo(b.date));
 
@@ -1616,10 +1585,8 @@ class WorkoutProvider with ChangeNotifier {
         if (exercise.isStrength &&
             exercise.averageWeight != null &&
             exercise.averageReps != null) {
-          // Check if this exercise would be a new personal record
           if (PersonalRecordService.isNewPersonalRecord(
               exercise, _personalRecords)) {
-            // Calculate weight and reps for PR (use best set if available)
             double weightForPR = exercise.averageWeight!;
             int repsForPR = exercise.averageReps!;
 
@@ -1632,11 +1599,9 @@ class WorkoutProvider with ChangeNotifier {
               }
             }
 
-            // Calculate 1RM
             final oneRepMax = PersonalRecordService.calculateOneRepMax(
                 weightForPR, repsForPR);
 
-            // Create new personal record
             final personalRecord = PersonalRecord(
               id: '${DateTime.now().millisecondsSinceEpoch}_${exercise.id}',
               exerciseId: exercise.exerciseId,
@@ -1651,11 +1616,9 @@ class WorkoutProvider with ChangeNotifier {
             );
 
             try {
-              // Save to Firestore
               final firestoreId = await _workoutFirestoreService
                   .savePersonalRecord(personalRecord);
 
-              // Update local list with Firestore ID
               final updatedRecord = PersonalRecord(
                 id: firestoreId,
                 exerciseId: exercise.exerciseId,
@@ -1670,43 +1633,24 @@ class WorkoutProvider with ChangeNotifier {
               );
 
               _personalRecords.add(updatedRecord);
-
-              if (kDebugMode) {
-                print(
-                    'DEBUG: Created PR: ${exercise.exerciseName} - ${weightForPR}kg × $repsForPR reps (1RM: ${oneRepMax.toStringAsFixed(1)}kg)');
-              }
             } catch (e) {
-              if (kDebugMode) {
-                print('DEBUG: Error saving personal record: $e');
-              }
+              // Optionally handle error
             }
           }
         }
-
-        // TODO: Add cardio personal records recalculation here if needed
-        // For now, focusing on strength exercises
-      }
-
-      if (kDebugMode) {
-        print(
-            'DEBUG: Personal records recalculation completed! Generated ${_personalRecords.length} personal records.');
-        print('DEBUG: Starting achievement generation...');
       }
 
       // Step 6: Generate achievements based on new personal records
-      // Process each exercise again to generate achievements with proper linking
       for (final exercise in sortedExercises) {
         if (exercise.isStrength &&
             exercise.averageWeight != null &&
             exercise.averageReps != null) {
-          // Find the personal record for this exercise
           final relatedPR = _personalRecords
               .where((pr) => pr.exerciseId == exercise.exerciseId)
               .where((pr) => pr.date.isAtSameMomentAs(exercise.date))
               .firstOrNull;
 
           if (relatedPR != null) {
-            // Generate achievements for this exercise
             await _generateAchievements(
               linkedExerciseId: exercise.id,
               linkedPersonalRecordId: relatedPR.id,
@@ -1715,21 +1659,19 @@ class WorkoutProvider with ChangeNotifier {
         }
       }
 
-      // Step 7: Generate general achievements (milestones, consistency, etc.)
       await _generateAchievements();
-
       notifyListeners();
-
-      if (kDebugMode) {
-        print('DEBUG: Full recalculation completed!');
-        print('DEBUG: Generated ${_personalRecords.length} personal records');
-        print('DEBUG: Generated ${_achievements.length} achievements');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('DEBUG: Error during full recalculation: $e');
-      }
+      // Optionally handle error
     }
+  }
+
+  // Keep the debug method for backwards compatibility
+  Future<void> debugRecalculateAllAchievements() async {
+    if (!kDebugMode) {
+      return;
+    }
+    await recalculateAllAchievements();
   }
 
   // Recalculate achievements when linked exercises are updated

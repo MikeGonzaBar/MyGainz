@@ -33,10 +33,16 @@ class _ProgressPageState extends State<ProgressPage> {
     'All Equipment',
     ...EquipmentOptions.basic,
   ];
-  final List<String> muscleGroupOptions = [
-    'All Muscles',
-    ...MuscleGroupOptions.all,
-  ];
+  // Remove the static muscleGroupOptions list
+  // Add a helper to get muscle groups from logged exercises
+  List<String> _getAvailableMuscleGroups(List<LoggedExercise> exercises) {
+    final Set<String> muscleSet = {};
+    for (final exercise in exercises) {
+      muscleSet.addAll(exercise.targetMuscles);
+    }
+    final sorted = muscleSet.toList()..sort();
+    return ['All Muscles', ...sorted];
+  }
 
   // Helper method to filter exercises by time period
   List<LoggedExercise> _filterExercisesByTime(List<LoggedExercise> exercises) {
@@ -99,46 +105,33 @@ class _ProgressPageState extends State<ProgressPage> {
   // Calculate equipment performance over time
   Map<String, List<FlSpot>> _calculateEquipmentPerformance(
       List<LoggedExercise> exercises) {
+    debugPrint('EQUIP PERF: Input exercises count: ${exercises.length}');
     if (exercises.isEmpty) return {};
 
-    // Group exercises by equipment and month
-    final Map<String, Map<int, List<double>>> equipmentData = {};
-    final earliestDate =
-        exercises.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b);
+    // Optionally filter by muscle group
+    final filtered = selectedMuscleGroup == 'All Muscles'
+        ? exercises
+        : exercises
+            .where((e) => e.targetMuscles.contains(selectedMuscleGroup))
+            .toList();
 
-    for (final exercise in exercises) {
-      // Skip exercises without weight data
+    // Group by equipment, keep logs in date order
+    final Map<String, List<LoggedExercise>> equipmentGroups = {};
+    for (final exercise in filtered) {
       if (exercise.weight == null) continue;
-
-      final monthsFromStart =
-          exercise.date.difference(earliestDate).inDays ~/ 30;
-
-      // Filter by muscle group if selected
-      if (selectedMuscleGroup != 'All Muscles' &&
-          !exercise.targetMuscles.contains(selectedMuscleGroup)) {
-        continue;
-      }
-
-      equipmentData[exercise.equipment] =
-          equipmentData[exercise.equipment] ?? {};
-      equipmentData[exercise.equipment]![monthsFromStart] =
-          (equipmentData[exercise.equipment]![monthsFromStart] ?? [])
-            ..add(exercise.weight!);
+      equipmentGroups[exercise.equipment] =
+          (equipmentGroups[exercise.equipment] ?? [])..add(exercise);
     }
 
-    // Convert to FlSpot data
     final Map<String, List<FlSpot>> result = {};
-    equipmentData.forEach((equipment, monthlyData) {
-      final spots = <FlSpot>[];
-      final sortedMonths = monthlyData.keys.toList()..sort();
-
-      for (final month in sortedMonths) {
-        final weights = monthlyData[month]!;
-        final avgWeight = weights.reduce((a, b) => a + b) / weights.length;
-        spots.add(FlSpot(month.toDouble(), avgWeight));
-      }
-
-      result[equipment] = spots;
+    equipmentGroups.forEach((equipment, logs) {
+      logs.sort((a, b) => a.date.compareTo(b.date));
+      result[equipment] = [
+        for (int i = 0; i < logs.length; i++)
+          FlSpot(i.toDouble(), logs[i].weight!)
+      ];
+      debugPrint(
+          'EQUIP PERF: Equipment $equipment, logs: ${logs.length}, FlSpots: ${result[equipment]!.map((s) => '( ${s.x}, ${s.y.toStringAsFixed(1)})').join(', ')}');
     });
 
     return result;
@@ -229,9 +222,61 @@ class _ProgressPageState extends State<ProgressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Progress Tracker',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Progress Tracker',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Consumer<WorkoutProvider>(
+                  builder: (context, workoutProvider, child) {
+                    return IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Recalculate Achievements',
+                      onPressed: () async {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const AlertDialog(
+                            content: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 16),
+                                Text('Recalculating achievements...'),
+                              ],
+                            ),
+                          ),
+                        );
+                        try {
+                          await workoutProvider.recalculateAllAchievements();
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Achievements recalculated!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Error recalculating achievements: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 20),
 
@@ -247,6 +292,8 @@ class _ProgressPageState extends State<ProgressPage> {
             Expanded(
               child: Consumer<WorkoutProvider>(
                 builder: (context, workoutProvider, child) {
+                  final filteredExercises =
+                      _filterExercisesByTime(workoutProvider.loggedExercises);
                   return SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +303,8 @@ class _ProgressPageState extends State<ProgressPage> {
                         const SizedBox(height: 32),
 
                         // Muscle Group Progress Section
-                        _buildMuscleGroupProgressSection(workoutProvider),
+                        _buildMuscleGroupProgressSection(
+                            workoutProvider, filteredExercises),
                         const SizedBox(height: 32),
 
                         // Cardio Performance Section
@@ -264,7 +312,8 @@ class _ProgressPageState extends State<ProgressPage> {
                         const SizedBox(height: 32),
 
                         // Equipment Performance Section
-                        _buildEquipmentPerformanceSection(workoutProvider),
+                        _buildEquipmentPerformanceSection(
+                            workoutProvider, filteredExercises),
                       ],
                     ),
                   );
@@ -277,9 +326,8 @@ class _ProgressPageState extends State<ProgressPage> {
     );
   }
 
-  Widget _buildMuscleGroupProgressSection(WorkoutProvider workoutProvider) {
-    final filteredExercises =
-        _filterExercisesByTime(workoutProvider.loggedExercises);
+  Widget _buildMuscleGroupProgressSection(
+      WorkoutProvider workoutProvider, List<LoggedExercise> filteredExercises) {
     final muscleGroupCounts = _calculateMuscleGroupCounts(filteredExercises);
     final muscleGroupWeights = _calculateMuscleGroupWeights(filteredExercises);
 
@@ -420,10 +468,8 @@ class _ProgressPageState extends State<ProgressPage> {
     );
   }
 
-  Widget _buildEquipmentPerformanceSection(WorkoutProvider workoutProvider) {
-    final filteredExercises =
-        _filterExercisesByTime(workoutProvider.loggedExercises);
-
+  Widget _buildEquipmentPerformanceSection(
+      WorkoutProvider workoutProvider, List<LoggedExercise> filteredExercises) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -453,7 +499,7 @@ class _ProgressPageState extends State<ProgressPage> {
                     onChanged: (String? newValue) {
                       setState(() => selectedMuscleGroup = newValue!);
                     },
-                    items: muscleGroupOptions
+                    items: _getAvailableMuscleGroups(filteredExercises)
                         .map<DropdownMenuItem<String>>((String value) {
                       return DropdownMenuItem<String>(
                         value: value,

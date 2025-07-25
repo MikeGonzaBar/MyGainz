@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2025-07-21
+
+### Added
+- **Equipment Performance Chart**
+    - Now supports per-log (session-by-session) data points for more granular progress tracking.
+    - Muscle group dropdown only shows groups with actual data, preventing empty graphs.
+- **Data Export Improvements**
+    - Personal data export now includes all fields for personal records and achievements.
+    - Added a detailed breakdown of all individual sets (set number, weight, reps, rest time, and date) for both exercises and routines.
+
+### Changed
+- **UI/UX**
+    - The recalculation button is now production-ready and moved to the Progress Tracker header for easier access.
+    - Removed all debug-only recalculation UI for a cleaner production experience.
+
+### Fixed
+- **Bugfixes**
+    - Prevents empty graphs by only showing muscle groups with data in dropdowns.
+
+### Technical
+- **Refactoring & Extensibility**
+    - Refactored data grouping logic for charts (now per-log instead of by week/month).
+    - Improved export structure for easier future extensibility and data completeness.
+
 ## [2.0.6] - 2025-07-17
 
 ### Added

@@ -193,6 +193,137 @@ class DataExportService {
       allData.add([]); // Empty row
     }
 
+    // Individual Sets Section
+    allData.add(['=== INDIVIDUAL SETS ===']);
+    allData.add([
+      'Parent Type', // 'Exercise' or 'Routine Exercise'
+      'Parent ID', // Exercise ID or Routine Exercise ID
+      'Exercise Name',
+      'Set Number',
+      'Weight',
+      'Reps',
+      'Rest Time (sec)',
+      'Date',
+    ]);
+    // Logged Exercises
+    for (final exercise in workoutProvider.loggedExercises) {
+      if (exercise.individualSets != null &&
+          exercise.individualSets!.isNotEmpty) {
+        for (final set in exercise.individualSets!) {
+          allData.add([
+            'Exercise',
+            exercise.id,
+            exercise.exerciseName,
+            set.setNumber,
+            set.weight.toStringAsFixed(2),
+            set.reps.toString(),
+            set.restTime?.inSeconds.toString() ?? 'N/A',
+            exercise.date.toIso8601String(),
+          ]);
+        }
+      }
+    }
+    // Routine Exercises
+    for (final routine in workoutProvider.loggedRoutines) {
+      for (final exercise in routine.exercises) {
+        if (exercise.individualSets != null &&
+            exercise.individualSets!.isNotEmpty) {
+          for (final set in exercise.individualSets!) {
+            allData.add([
+              'Routine Exercise',
+              exercise.id,
+              exercise.exerciseName,
+              set.setNumber,
+              set.weight.toStringAsFixed(2),
+              set.reps.toString(),
+              set.restTime?.inSeconds.toString() ?? 'N/A',
+              routine.date.toIso8601String(),
+            ]);
+          }
+        }
+      }
+    }
+    if (allData.last[0] == '=== INDIVIDUAL SETS ===') {
+      allData.add(['No individual set data yet']);
+    }
+    allData.add([]); // Empty row
+
+    // Personal Records Section
+    allData.add(['=== PERSONAL RECORDS ===']);
+    allData.add([
+      'PR ID',
+      'Exercise ID',
+      'Exercise Name',
+      'Date',
+      'Equipment',
+      'Type',
+      'Weight',
+      'Reps',
+      'Sets',
+      '1RM',
+      'Distance',
+      'Duration (min)',
+      'Pace',
+      'Speed',
+      'Calories',
+      'Heart Rate',
+    ]);
+    for (final pr in workoutProvider.personalRecords) {
+      allData.add([
+        pr.id,
+        pr.exerciseId,
+        pr.exerciseName,
+        pr.date.toIso8601String(),
+        pr.equipment,
+        pr.type.toString().split('.').last,
+        pr.weight?.toStringAsFixed(2) ?? 'N/A',
+        pr.reps?.toString() ?? 'N/A',
+        pr.sets?.toString() ?? 'N/A',
+        pr.oneRepMax?.toStringAsFixed(2) ?? 'N/A',
+        pr.distance?.toStringAsFixed(2) ?? 'N/A',
+        pr.duration?.inMinutes.toString() ?? 'N/A',
+        pr.pace?.toStringAsFixed(2) ?? 'N/A',
+        pr.speed?.toStringAsFixed(2) ?? 'N/A',
+        pr.calories?.toString() ?? 'N/A',
+        pr.heartRate?.toString() ?? 'N/A',
+      ]);
+    }
+    if (workoutProvider.personalRecords.isEmpty) {
+      allData.add(['No personal records yet']);
+    }
+    allData.add([]); // Empty row
+
+    // Achievements Section
+    allData.add(['=== ACHIEVEMENTS ===']);
+    allData.add([
+      'Achievement ID',
+      'Title',
+      'Description',
+      'Achieved Date',
+      'Type',
+      'Exercise Name',
+      'Value',
+      'Linked Exercise ID',
+      'Linked PR ID',
+    ]);
+    for (final ach in workoutProvider.achievements) {
+      allData.add([
+        ach.id,
+        ach.title,
+        ach.description,
+        ach.achievedDate.toIso8601String(),
+        ach.type.toString().split('.').last,
+        ach.exerciseName ?? 'N/A',
+        ach.value?.toStringAsFixed(2) ?? 'N/A',
+        ach.linkedExerciseId ?? 'N/A',
+        ach.linkedPersonalRecordId ?? 'N/A',
+      ]);
+    }
+    if (workoutProvider.achievements.isEmpty) {
+      allData.add(['No achievements yet']);
+    }
+    allData.add([]); // Empty row
+
     // Statistics Section
     allData.add(['=== WORKOUT STATISTICS ===']);
     allData.add(['Metric', 'Value']);
